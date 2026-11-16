@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ใบสั่งซื้อ SKS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Noto+Sans+Myanmar:wght@400;600&family=Noto+Sans+Khmer:wght@400;600&display=swap" rel="stylesheet">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --green: #06C755; --green-d: #05a346; --blue: #1A56B8; --red: #D93025; --amber: #8A6100; --pink: #8E2463;
+    --bg: #F2F4F5; --card: #FFFFFF; --text: #1F2328; --muted: #6B7280; --line: #E5E7EB; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 'Sarabun', 'Noto Sans Myanmar', 'Noto Sans Khmer', system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--green); color: #fff;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+  header.blue { background: var(--blue); } header.purple { background: #534AB7; }
+  header .back { border: 0; background: #fff3; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+  header img { width: 34px; height: 34px; border-radius: 50%; background: #fff3; object-fit: cover; }
+  header .t { font-weight: 700; font-size: 17px; line-height: 1.2; }
+  header .s { font-size: 13px; opacity: .9; }
+  main { padding: 12px 12px 120px; max-width: 680px; margin: 0 auto; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 2px #0000000d; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .req { color: var(--red); font-weight: 400; font-size: 13px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; color: var(--text); min-height: 44px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--green); border-color: transparent; }
+  textarea { min-height: 60px; resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .invalid { border-color: var(--red) !important; background: #FFF6F5; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; background: #fff; cursor: pointer; user-select: none; }
+  .chip.on { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 10px;
+    font: inherit; font-weight: 600; padding: 12px 16px; cursor: pointer; min-height: 44px; text-decoration: none; }
+  .btn.full { width: 100%; }
+  .btn.ghost { background: #EEF9F2; color: var(--green-d); }
+  .btn.line { background: #fff; border: 1px solid var(--line); color: var(--text); }
+  .btn.camera { background: #fff; border: 2px dashed #B8C2CC; color: var(--text); width: 100%; min-height: 64px; }
+  .btn.primary { background: var(--green); color: #fff; font-size: 17px; min-height: 52px; }
+  .btn.blue { background: var(--blue); color: #fff; } .btn.red { background: var(--red); color: #fff; }
+  .btn:disabled { opacity: .5; }
+  .actions { display: grid; gap: 8px; }
+  .actions.two { grid-template-columns: 1fr 1fr; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .warn { font-size: 13px; color: var(--amber); background: #FFF4CE; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .info { font-size: 13px; color: var(--blue); background: #EEF4FF; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .flags { background: #FDECEA; color: #B3261E; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 10px; }
+  .flags b { display: block; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .thumbs:empty { display: none; }
+  .thumb { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #ddd; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb button { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: #000a; color: #fff; font-size: 16px; cursor: pointer; }
+  .thumb a { display: block; height: 100%; }
+  .mini { font-size: 12px; color: var(--muted); margin: 6px 0 2px; }
+  .gps { font-size: 13px; padding: 6px 10px; border-radius: 8px; background: #EEF2F6; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .gps.ok { background: #E8F7EE; color: var(--green-d); } .gps.bad { background: #FDECEA; color: var(--red); cursor: pointer; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: #fffffff2; border-top: 1px solid var(--line); z-index: 5; }
+  .bar .inner { max-width: 680px; margin: 0 auto; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 14px; margin: 0; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; white-space: pre-line; word-break: break-word; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .s-wait { background: #FFF4CE; color: var(--amber); } .s-buy { background: #E8F0FE; color: var(--blue); }
+  .s-settle { background: #FCE8F3; color: var(--pink); } .s-ok { background: #DFF6E3; color: #1B7A35; }
+  .s-bad { background: #FDE2E1; color: #B3261E; } .s-gray { background: #EEE; color: #666; }
+  .group { margin: 18px 4px 6px; font-size: 14px; font-weight: 700; color: var(--muted); display: flex; justify-content: space-between; }
+  .po { display: block; background: var(--card); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: 0 1px 2px #0000000d; }
+  .po .r1 { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .po .id { font-weight: 700; } .po .v { font-size: 14px; } .po .m { font-size: 12px; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 18px; font-size: 14px; }
+  table.items { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.items th, table.items td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.items th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .r { text-align: right !important; } .ok { color: var(--green-d); font-weight: 600; } .bad { color: var(--red); font-weight: 600; }
+  .item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; position: relative; }
+  .item .g3 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .item .del { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: var(--muted); font-size: 22px; width: 34px; height: 34px; cursor: pointer; }
+  .item .name { padding-right: 38px; }
+  .item .head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; padding-right: 4px; }
+  .item .head span { color: var(--muted); font-weight: 400; white-space: nowrap; }
+  .item .res { font-size: 13px; text-align: right; margin-top: 6px; }
+  .total { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  .total input { max-width: 170px; text-align: right; font-weight: 700; font-size: 18px; }
+  .check { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--text); margin: 12px 0 0; cursor: pointer; }
+  .check input { width: 22px; height: 22px; min-height: 0; margin-top: 2px; flex: none; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .seg .chip { text-align: center; border-radius: 10px; }
+  .seg .chip.on.bad { background: var(--red); border-color: var(--red); }
+  /* หน้าผู้ไปซื้อ — ปุ่มใหญ่ ไอคอนใหญ่ */
+  .lang { display: flex; gap: 6px; justify-content: center; margin-bottom: 12px; }
+  .lang .chip { font-size: 15px; padding: 8px 16px; }
+  .step { display: flex; gap: 14px; align-items: center; }
+  .step .ic { font-size: 40px; width: 56px; height: 56px; flex: none; display: flex; align-items: center; justify-content: center; background: #F2F4F5; border-radius: 14px; }
+  .step .tx { font-size: 18px; font-weight: 700; line-height: 1.35; }
+  .step .sub { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .step.done .ic { background: #E8F7EE; }
+  .bigcam { width: 100%; min-height: 84px; font-size: 20px; border-radius: 14px; margin-top: 12px; }
+  .job { display: flex; gap: 14px; align-items: center; background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 10px; cursor: pointer; border: 2px solid var(--green); }
+  .job .ic { font-size: 44px; } .job .v { font-size: 20px; font-weight: 700; } .job .m { color: var(--muted); font-size: 14px; }
+  .cash { font-size: 22px; font-weight: 700; color: var(--blue); }
+  .overlay { position: fixed; inset: 0; background: #000a; display: none; align-items: center; justify-content: center; z-index: 20; color: #fff; flex-direction: column; gap: 14px; padding: 24px; text-align: center; }
+  .overlay.show { display: flex; }
+  .spin { width: 44px; height: 44px; border: 4px solid #fff4; border-top-color: #fff; border-radius: 50%; animation: r 1s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  .done { text-align: center; padding: 36px 16px; }
+  .done .ic { font-size: 64px; } .done h1 { font-size: 22px; margin: 8px 0; }
+  .done .id { font-size: 26px; font-weight: 700; margin: 6px 0 16px; }
+  .done .btn { margin-top: 10px; width: 100%; }
+  .mock { background: #FFF4CE; color: var(--amber); font-size: 13px; text-align: center; padding: 6px; }
+  .mock .roles { display: inline-flex; gap: 6px; margin-left: 4px; }
+  .mock button { font: inherit; font-size: 13px; border: 1px solid #E0C36A; background: #fff; color: var(--amber); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+  .mock button.on { background: var(--amber); border-color: var(--amber); color: #fff; }
+  .toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: #222; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 30; max-width: 90vw; display: none; }
+  .toast.show { display: block; }
+  .center { text-align: center; padding: 60px 16px; color: var(--muted); }
+  .logrow { display: grid; grid-template-columns: 118px 1fr; gap: 8px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .logrow:last-child { border-bottom: 0; }
+  .logrow .lt { color: var(--muted); font-size: 12px; padding-top: 2px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="mockBar" class="mock hidden">โหมดทดสอบ — ดูในบทบาท:
+  <span class="roles"><button data-as="clerk">เสมียน</button><button data-as="exec">ผู้บริหาร</button><button data-as="buyer">ผู้ไปซื้อ</button></span></div>
+<header id="hdr">
+  <button class="back hidden" id="backBtn" aria-label="กลับ">‹</button>
+  <img id="avatar" alt="">
+  <div><div class="t" id="hdrTitle">ใบสั่งซื้อ SKS</div><div class="s" id="hdrName">กำลังโหลด…</div></div>
+</header>
+<main id="app"><div class="center">กำลังโหลด…</div></main>
+<div class="bar hidden" id="bar"><div class="inner"><button class="btn primary full" id="submitBtn">บันทึก</button></div></div>
+<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+<div class="overlay" id="overlay"><div class="spin"></div><div id="overlayText">กำลังส่ง…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================== ตั้งค่า ================== */
+const LIFF_ID = '2012644217-T8zkXlmB';     // จาก LINE Developers > LIFF
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxFmiolDGfEDy2uiENNKzudpEznSDf2rM0SSpn6Jwn0Rf5E51WfzQNW_gC-aUtVA9E/exec';    // URL ของ Apps Script Web app (ลงท้าย /exec)
+const MAX_IMAGES = 5, IMG_MAX_SIDE = 1600, IMG_QUALITY = 0.8;
+
+const PAY = { CREDIT: 'วางบิล (เครดิต)', ADVANCE: 'เงินสด – เบิกล่วงหน้า', SELF: 'เงินสด – สำรองจ่าย' };
+const ST = { WAIT_A1: 'รออนุมัติสั่งซื้อ', TO_BUY: 'อนุมัติแล้ว รอซื้อ', BOUGHT: 'ซื้อแล้ว รอตรวจรับ', WAIT_A2: 'ตรวจรับแล้ว รอปิด',
+  WAIT_SETTLE: 'รอเคลียร์เงิน', CLOSED: 'ปิดรายการแล้ว', REJECTED: 'ไม่อนุมัติ', CANCELLED: 'ยกเลิก' };
+const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's-buy', [ST.WAIT_A2]: 's-wait',
+  [ST.WAIT_SETTLE]: 's-settle', [ST.CLOSED]: 's-ok', [ST.REJECTED]: 's-bad', [ST.CANCELLED]: 's-gray' };
+
+/* ข้อความหน้าผู้ไปซื้อ 3 ภาษา — ควรให้คนงานที่พูดภาษานั้นตรวจทาน */
+const L = {
+  th: { name: 'ไทย', jobs: 'งานซื้อของของฉัน', none: 'ยังไม่มีงานซื้อของ', tap: 'แตะเพื่อเริ่ม',
+    s1: 'ยื่นใบสั่งของให้ร้าน', s1b: 'ให้ร้านเขียนเลข PO บนบิล',
+    s2: 'ถ่ายรูปบิลร้าน', s2b: 'บิลร้าน หรือใบสั่งของที่ร้านเขียนราคา', s3: 'ถ่ายรูปของที่ซื้อ', s3b: 'วางของทั้งหมดให้เห็นชัด',
+    cam: 'ถ่ายรูป', send: 'ส่ง', sending: 'กำลังส่ง…', cash: 'เงินที่เบิก', items: 'ของที่ต้องซื้อ',
+    needBill: 'ต้องถ่ายรูปบิล', needGoods: 'ต้องถ่ายรูปของ', done: 'ส่งแล้ว', doneSub: 'นำของและบิลไปให้เสมียน',
+    close: 'ปิด', err: 'ส่งไม่สำเร็จ ลองใหม่', max: 'ถ่ายได้สูงสุด 5 รูป', old: 'รูปนี้ไม่ใช่รูปที่เพิ่งถ่าย',
+    gpsOk: 'ได้ตำแหน่งแล้ว', gpsWait: 'กำลังหาตำแหน่ง…', gpsBad: 'เปิดตำแหน่ง (GPS) แล้วแตะที่นี่', myRecent: 'งานที่ส่งแล้ว' },
+  my: { name: 'မြန်မာ', jobs: 'ကျွန်ုပ်၏ ဝယ်ယူရန်အလုပ်', none: 'ဝယ်ရန်အလုပ် မရှိသေးပါ', tap: 'စရန် နှိပ်ပါ',
+    s1: 'မှာစာကို ဆိုင်သို့ ပေးပါ', s1b: 'ဘောက်ချာပေါ်တွင် PO နံပါတ် ရေးခိုင်းပါ',
+    s2: 'ဆိုင်ဘောက်ချာ ဓာတ်ပုံရိုက်ပါ', s2b: 'ဆိုင်ဘောက်ချာ (သို့) ဈေးနှုန်းရေးထားသော မှာစာ', s3: 'ဝယ်ထားသောပစ္စည်း ဓာတ်ပုံရိုက်ပါ', s3b: 'ပစ္စည်းအားလုံး ရှင်းရှင်းမြင်ရအောင် ချထားပါ',
+    cam: 'ဓာတ်ပုံရိုက်', send: 'ပို့မည်', sending: 'ပို့နေသည်…', cash: 'ထုတ်ယူထားသောငွေ', items: 'ဝယ်ရမည့်ပစ္စည်း',
+    needBill: 'ဘောက်ချာဓာတ်ပုံ လိုအပ်သည်', needGoods: 'ပစ္စည်းဓာတ်ပုံ လိုအပ်သည်', done: 'ပို့ပြီးပါပြီ', doneSub: 'ပစ္စည်းနှင့် ဘောက်ချာကို စာရေးထံ ယူသွားပါ',
+    close: 'ပိတ်မည်', err: 'ပို့၍မရပါ၊ ထပ်ကြိုးစားပါ', max: 'ဓာတ်ပုံ ၅ ပုံအထိသာ', old: 'ဤဓာတ်ပုံသည် ယခုရိုက်ထားခြင်း မဟုတ်ပါ',
+    gpsOk: 'တည်နေရာ ရပြီ', gpsWait: 'တည်နေရာ ရှာနေသည်…', gpsBad: 'တည်နေရာ (GPS) ဖွင့်ပြီး ဒီမှာနှိပ်ပါ', myRecent: 'ပို့ပြီးသောအလုပ်' },
+  km: { name: 'ខ្មែរ', jobs: 'ការងារទិញរបស់ខ្ញុំ', none: 'មិនទាន់មានការងារទិញទេ', tap: 'ចុចដើម្បីចាប់ផ្តើម',
+    s1: 'ប្រគល់ប័ណ្ណបញ្ជាទិញឱ្យហាង', s1b: 'ឱ្យហាងសរសេរលេខ PO លើវិក្កយបត្រ',
+    s2: 'ថតរូបវិក្កយបត្រហាង', s2b: 'វិក្កយបត្រហាង ឬប័ណ្ណបញ្ជាទិញដែលហាងសរសេរតម្លៃ', s3: 'ថតរូបទំនិញដែលបានទិញ', s3b: 'ដាក់ទំនិញទាំងអស់ឱ្យឃើញច្បាស់',
+    cam: 'ថតរូប', send: 'ផ្ញើ', sending: 'កំពុងផ្ញើ…', cash: 'ប្រាក់ដែលបានបើក', items: 'ទំនិញដែលត្រូវទិញ',
+    needBill: 'ត្រូវថតរូបវិក្កយបត្រ', needGoods: 'ត្រូវថតរូបទំនិញ', done: 'បានផ្ញើរួច', doneSub: 'យកទំនិញ និងវិក្កយបត្រទៅឱ្យស្មៀន',
+    close: 'បិទ', err: 'ផ្ញើមិនបានទេ សូមព្យាយាមម្តងទៀត', max: 'ថតបានច្រើនបំផុត ៥ រូប', old: 'រូបនេះមិនមែនទើបថតទេ',
+    gpsOk: 'បានទីតាំងហើយ', gpsWait: 'កំពុងរកទីតាំង…', gpsBad: 'បើកទីតាំង (GPS) ហើយចុចទីនេះ', myRecent: 'ការងារដែលបានផ្ញើ' },
+};
+
+/* ================== สถานะ ================== */
+let qs = new URLSearchParams(location.search);
+const MOCK = qs.has('mock') || LIFF_ID.startsWith('YOUR_');
+const state = { me: null, profile: {}, lang: 'th', view: 'home', id: '', photos: {}, location: null, record: null };
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtN = (n) => Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const t = (k) => (L[state.lang] || L.th)[k] || L.th[k];
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => {
+    if (v == null || v === false) return;
+    if (k === 'class') el.className = v; else if (k.startsWith('on')) el[k] = v; else if (k === 'html') el.innerHTML = v; else el.setAttribute(k, v);
+  });
+  kids.flat().forEach((c) => c != null && el.append(c instanceof Node ? c : String(c)));
+  return el;
+}
+function toast(msg, ms = 3000) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+function overlay(on, text) { $('overlay').classList.toggle('show', on); if (text) $('overlayText').textContent = text; }
+function badge(status) { return h('span', { class: 'badge ' + (ST_CLASS[status] || 's-gray') }, status); }
+function setBar(label, fn, cls) {
+  const b = $('submitBtn'); b.textContent = label; b.onclick = fn; b.className = 'btn primary full ' + (cls || '');
+  $('bar').classList.toggle('hidden', !fn);
+}
+function header(title, sub, color) {
+  $('hdrTitle').textContent = title; $('hdrName').textContent = sub || state.profile.displayName || '';
+  $('hdr').className = color || ''; $('backBtn').classList.toggle('hidden', state.view === 'home');
+}
+function flagsBox(text) {
+  if (!text) return null;
+  return h('div', { class: 'flags' }, h('b', {}, '⚠️ ข้อสังเกตจากระบบ'), ...text.split('\n').map((x) => h('div', {}, '• ' + x)));
+}
+
+/* ================== API ================== */
+async function api(action, extra = {}) {
+  if (MOCK) return mockApi(action, extra);
+  const res = await fetch(GAS_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, idToken: liff.getIDToken(), ...extra }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+  return data;
+}
+
+/* ================== เริ่มต้น + เปลี่ยนหน้า ================== */
+async function init() {
+  try {
+    if (MOCK) {
+      $('mockBar').classList.remove('hidden');
+      document.querySelectorAll('#mockBar [data-as]').forEach((b) => (b.onclick = () => mockSwitch(b.dataset.as)));
+      mockProfile();
+    } else {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+      state.profile = await liff.getProfile();
+      qs = new URLSearchParams(location.search); // อ่านหลัง liff.init (LIFF ส่งพารามิเตอร์มาผ่าน liff.state)
+    }
+    if (state.profile.pictureUrl) $('avatar').src = state.profile.pictureUrl; else $('avatar').style.display = 'none';
+    state.me = await api('me');
+    state.lang = state.me.user.lang || localGet('lang') || 'th';
+    $('backBtn').onclick = () => history.back();
+    window.onpopstate = (e) => route(e.state || { view: 'home' }, false);
+    const mode = qs.get('mode');
+    const first = mode ? { view: mode, id: qs.get('id') || '' } : { view: 'home' };
+    if (first.view !== 'home') {
+      try { history.replaceState({ view: 'home' }, '', location.pathname + (MOCK ? location.search.replace(/[&?](mode|id)=[^&]*/g, '') : '')); } catch (_) { /* ไม่สำคัญ */ }
+    }
+    await route(first, first.view !== 'home');
+  } catch (err) { showError(err); }
+}
+
+async function go(view, id) { await route({ view, id }, true); }
+async function route(s, push) {
+  if (push) {
+    try { history.pushState(s, '', '?' + new URLSearchParams({ ...(MOCK ? { mock: '', as: qs.get('as') || 'clerk' } : {}), mode: s.view, ...(s.id ? { id: s.id } : {}) })); }
+    catch (_) { try { history.pushState(s, ''); } catch (__) { /* หน้าทดสอบแบบ data: URL */ } }
+  }
+  state.view = s.view; state.id = s.id || ''; state.photos = { bill: [], goods: [], recv: [] };
+  setBar('', null); scrollTo(0, 0);
+  $('app').innerHTML = '<div class="center">กำลังโหลด…</div>';
+  try {
+    const views = { home: viewHome, create: viewCreate, po: viewPO, buy: viewBuy, receive: viewReceive };
+    await (views[s.view] || viewHome)();
+  } catch (err) { showError(err); }
+}
+function showError(err) {
+  $('app').innerHTML = ''; setBar('', null);
+  $('app').append(h('div', { class: 'center' }, '⚠️ ' + (err.message || err)));
+}
+function localGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+function localSet(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* ไม่สำคัญ */ } }
+
+/* ================== หน้าแรก (แยกตามบทบาท) ================== */
+async function viewHome() {
+  const u = state.me.user;
+  const officer = u.isClerk || u.isExec;
+  header(officer ? 'ระบบใบสั่งซื้อ SKS' : t('jobs'), `${state.profile.displayName} · ${u.role || 'ผู้ซื้อ'}`);
+  const data = await api('list');
+  const app = $('app'); app.innerHTML = '';
+
+  if (!officer || data.jobs.length) {
+    app.append(langSwitch(() => route({ view: 'home' }, false)));
+    app.append(h('div', { class: 'group' }, '🛒 ' + t('jobs')));
+    if (!data.jobs.length) app.append(h('div', { class: 'card empty', style: 'font-size:18px' }, t('none')));
+    data.jobs.forEach((p) => app.append(h('div', { class: 'job', onclick: () => go('buy', p.id) },
+      h('div', { class: 'ic' }, '🛒'),
+      h('div', {}, h('div', { class: 'v' }, p.vendor), h('div', { class: 'm' }, `${p.id} · ${t('tap')} ›`)))));
+  }
+
+  if (u.isClerk) app.append(h('button', { class: 'btn primary full', style: 'margin:8px 0 4px', onclick: () => go('create') }, '+ สร้างใบสั่งซื้อ'));
+
+  if (officer) {
+    const groups = [
+      [ST.WAIT_A2, u.isExec ? '✍️ รอปิดรายการ — แตะเพื่อปิด' : '✍️ รอปิดรายการ (รอผู้บริหาร)'],
+      [ST.WAIT_A1, u.isExec ? '🕐 รออนุมัติสั่งซื้อ — แตะเพื่ออนุมัติ' : '🕐 รออนุมัติสั่งซื้อ (รอผู้บริหาร)'],
+      ['print', '🖨️ อนุมัติแล้ว — รอพิมพ์ใบสั่งของ'],
+      [ST.BOUGHT, '📦 ซื้อแล้ว — รอตรวจรับ'],
+      ['tobuy', '🛒 พิมพ์แล้ว — ผู้ไปซื้อกำลังไปซื้อ'],
+      [ST.WAIT_SETTLE, '💵 รอเคลียร์เงิน'],
+    ];
+    const pick = (k) => data.open.filter((p) => k === 'print' ? p.status === ST.TO_BUY && !p.prints
+      : k === 'tobuy' ? p.status === ST.TO_BUY && p.prints : p.status === k);
+    groups.forEach(([k, title]) => {
+      const list = pick(k);
+      app.append(h('div', { class: 'group' }, h('span', {}, title), h('span', {}, String(list.length))));
+      if (!list.length) app.append(h('div', { class: 'empty' }, '—'));
+      list.forEach((p) => app.append(poRow(p)));
+    });
+    if (data.recent.length) {
+      app.append(h('div', { class: 'group' }, 'รายการที่จบแล้ว (ล่าสุด)'));
+      data.recent.forEach((p) => app.append(poRow(p)));
+    }
+  } else if (data.myRecent.length) {
+    app.append(h('div', { class: 'group' }, t('myRecent')));
+    data.myRecent.forEach((p) => app.append(poRow(p)));
+  }
+}
+
+function poRow(p) {
+  const money = p.total ? `${fmt(p.total)} บาท` : p.advance ? `เบิก ${fmt(p.advance)}` : '';
+  return h('div', { class: 'po', onclick: () => go('po', p.id) },
+    h('div', { class: 'r1' }, h('span', { class: 'id' }, (p.flagged ? '⚠️ ' : '') + p.id), badge(p.status)),
+    h('div', { class: 'v' }, p.vendor),
+    h('div', { class: 'm' }, [p.buyer && 'ผู้ไปซื้อ ' + p.buyer, p.payment, money, p.created].filter(Boolean).join(' · ')));
+}
+
+function langSwitch(onChange) {
+  return h('div', { class: 'lang' }, ...Object.keys(L).map((k) => h('div', {
+    class: 'chip' + (state.lang === k ? ' on' : ''),
+    onclick: () => { state.lang = k; localSet('lang', k); api('setLang', { lang: k }).catch(() => {}); onChange(); },
+  }, L[k].name)));
+}
+
+/* ================== เสมียน: สร้างใบสั่งซื้อ ================== */
+async function viewCreate() {
+  header('สร้างใบสั่งซื้อ', 'ยังไม่ต้องใส่ราคา — ราคาใส่ตอนตรวจรับ');
+  const m = state.me;
+  if (!m.user.isClerk) throw new Error('เฉพาะเสมียนเท่านั้น');
+  const f = { payment: PAY.CREDIT, items: [{ name: '', qty: '', unit: '' }] };
+  const app = $('app'); app.innerHTML = '';
+
+  const vendor = h('input', { id: 'vendor', list: 'vendorList', placeholder: 'เลือกหรือพิมพ์ชื่อร้าน', autocomplete: 'off' });
+  const vlist = h('datalist', { id: 'vendorList' }, ...m.vendors.map((v) => h('option', { value: v.name })));
+  const vhint = h('div', { class: 'hint' });
+  const dept = h('select', { id: 'dept' }, h('option', { value: '' }, '— เลือกแผนก —'), ...m.departments.map((d) => h('option', { value: d }, d)));
+  const buyer = h('select', { id: 'buyer' }, h('option', { value: '' }, '— เลือกผู้ไปซื้อ —'), ...m.buyers.map((b) => h('option', { value: b.id }, b.name)));
+  const chips = h('div', { class: 'chips' });
+  const advWrap = h('div', { class: 'hidden' }, h('label', { for: 'advance' }, 'ยอดเงินที่เบิกล่วงหน้า (บาท) *'),
+    h('input', { id: 'advance', type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: '0.00' }),
+    h('div', { class: 'hint' }, 'ผู้บริหารเห็นยอดนี้ตอนอนุมัติ · ตอนปิดรายการระบบคำนวณเงินทอนให้'));
+  const setPay = (p) => {
+    f.payment = p; [...chips.children].forEach((c) => c.classList.toggle('on', c.textContent === p));
+    advWrap.classList.toggle('hidden', p !== PAY.ADVANCE);
+  };
+  m.payments.forEach((p) => chips.append(h('div', { class: 'chip', onclick: () => setPay(p) }, p)));
+  setPay(PAY.CREDIT);
+  vendor.oninput = () => {
+    vendor.classList.remove('invalid');
+    const v = m.vendors.find((x) => x.name === vendor.value.trim());
+    if (v) { setPay(v.payment); vhint.textContent = `วิธีชำระประจำร้าน: ${v.payment} (เปลี่ยนได้)`; }
+    else vhint.textContent = vendor.value.trim() ? 'ร้านใหม่ — ระบบจะเพิ่มลงรายชื่อร้านให้' : '';
+  };
+
+  const itemsBox = h('div', { id: 'items' });
+  const ilist = h('datalist', { id: 'itemList' }, ...m.itemNames.map((n) => h('option', { value: n })));
+  const renderItems = () => {
+    itemsBox.innerHTML = '';
+    f.items.forEach((it, i) => {
+      const name = h('input', { class: 'name', list: 'itemList', placeholder: `รายการที่ ${i + 1}`, value: it.name });
+      const qty = h('input', { class: 'qty', type: 'number', inputmode: 'decimal', min: '0', step: 'any', placeholder: 'จำนวน', value: it.qty });
+      const unit = h('input', { class: 'unit', placeholder: 'หน่วย เช่น ตัว เส้น กล่อง', value: it.unit });
+      [name, qty, unit].forEach((x) => (x.oninput = () => { x.classList.remove('invalid'); it.name = name.value; it.qty = qty.value; it.unit = unit.value; }));
+      itemsBox.append(h('div', { class: 'item' }, name, h('div', { class: 'g3' }, qty, unit),
+        f.items.length > 1 ? h('button', { type: 'button', class: 'del', 'aria-label': 'ลบรายการ', onclick: () => { f.items.splice(i, 1); renderItems(); } }, '×') : null));
+    });
+  };
+  renderItems();
+  const note = h('textarea', { id: 'note', placeholder: 'เช่น ซ่อมสายพานเครื่องไสไม้' });
+
+  app.append(
+    h('section', { class: 'card' }, h('h2', {}, '🏪 ร้านค้า'), vendor, vlist, vhint,
+      h('div', { class: 'row2' }, h('div', {}, h('label', {}, 'แผนกที่ใช้'), dept), h('div', {}, h('label', {}, 'ผู้ไปซื้อ *'), buyer)),
+      h('div', { class: 'hint' }, 'ไม่มีชื่อผู้ไปซื้อ? ให้เขาเพิ่มเพื่อน LINE ของบริษัทก่อน ชื่อจะขึ้นอัตโนมัติ')),
+    h('section', { class: 'card' }, h('h2', {}, '💵 วิธีชำระ'), chips, advWrap),
+    h('section', { class: 'card' }, h('h2', {}, '📦 รายการที่จะสั่ง ', h('span', { class: 'req' }, '* ไม่ต้องใส่ราคา')), itemsBox, ilist,
+      h('button', { type: 'button', class: 'btn ghost full', onclick: () => { f.items.push({ name: '', qty: '', unit: '' }); renderItems(); itemsBox.lastChild.querySelector('.name').focus(); } }, '+ เพิ่มรายการ')),
+    h('section', { class: 'card' }, h('label', { for: 'note' }, 'เหตุผลที่ซื้อ / หมายเหตุ'), note),
+  );
+
+  setBar('ส่งขออนุมัติสั่งซื้อ', async () => {
+    document.querySelectorAll('.invalid').forEach((x) => x.classList.remove('invalid'));
+    const errs = []; let first = null;
+    const bad = (el, msg) => { el.classList.add('invalid'); errs.push(msg); first = first || el; };
+    if (!vendor.value.trim()) bad(vendor, 'ร้านค้า');
+    if (!buyer.value) bad(buyer, 'ผู้ไปซื้อ');
+    if (f.payment === PAY.ADVANCE && !(Number($('advance').value) > 0)) bad($('advance'), 'ยอดเบิก');
+    const rows = itemsBox.querySelectorAll('.item');
+    const filled = f.items.filter((it) => it.name.trim());
+    if (!filled.length) bad(rows[0].querySelector('.name'), 'รายการ');
+    if (filled.length > 15) return toast('ใบหนึ่งใส่ได้ไม่เกิน 15 รายการ (ให้พอดีครึ่งแผ่น A4) — แยกเป็น 2 ใบ', 5000);
+    f.items.forEach((it, i) => { if (it.name.trim() && !(Number(it.qty) > 0)) bad(rows[i].querySelector('.qty'), 'จำนวน'); });
+    if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('กรุณาใส่: ' + [...new Set(errs)].join(', '), 4000); }
+    $('submitBtn').disabled = true; overlay(true, 'กำลังส่งขออนุมัติ…');
+    try {
+      const res = await api('create', { data: {
+        vendor: vendor.value.trim(), department: dept.value, buyerId: buyer.value, payment: f.payment,
+        advance: f.payment === PAY.ADVANCE ? Number($('advance').value) : 0, note: note.value.trim(),
+        items: filled.map((it) => ({ name: it.name.trim(), qty: Number(it.qty), unit: it.unit.trim() })),
+      } });
+      showDone('📨', 'ส่งขออนุมัติแล้ว', res.id, res.notified ? 'ส่งการ์ดให้ผู้บริหารใน LINE แล้ว\nเมื่ออนุมัติ ใบนี้จะขึ้นในกลุ่ม "รอพิมพ์ใบสั่งของ"' : 'บันทึกแล้ว (ยังไม่ได้แจ้งผู้บริหาร — ตรวจชีต Staff)', 'สร้างใบใหม่', () => go('create'));
+    } catch (err) { toast('ส่งไม่สำเร็จ: ' + err.message, 5000); }
+    finally { overlay(false); $('submitBtn').disabled = false; }
+  });
+}
+
+/* ================== รายละเอียดใบสั่งซื้อ + ปุ่มตามสิทธิ์ ================== */
+async function viewPO() {
+  const res = await api('get', { id: state.id });
+  const r = state.record = res.record; const can = res.can;
+  header(r.id, r.vendor, r.status === ST.WAIT_A2 || r.status === ST.WAIT_A1 ? 'purple' : '');
+  const app = $('app'); app.innerHTML = '';
+  const kv = (pairs) => h('dl', { class: 'kv' }, ...pairs.filter((p) => p[1] !== '' && p[1] != null).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
+
+  app.append(h('section', { class: 'card' },
+    h('h2', {}, r.id, badge(r.status)),
+    kv([['ร้านค้า', r.vendor], ['แผนก', r.dept], ['ผู้ไปซื้อ', r.buyer], ['วิธีชำระ', r.payment],
+      ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['ผู้จัดทำ', `${r.creator} · ${r.created}`],
+      ['เหตุผล', r.note], ['อนุมัติสั่งซื้อ', r.a1By ? `${r.a1By} · ${r.a1At}` : ''], ['ใช้ได้ถึง', r.validUntil],
+      ['พิมพ์แล้ว', r.a1By ? `${r.prints} ครั้ง` : ''], ['ส่งรูปจากร้าน', r.boughtAt],
+      ['เลขที่บิลร้าน', r.billNo], ['ยอดตามบิล', r.receivedAt ? fmt(r.total) + ' บาท' : ''],
+      ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result], ['หมายเหตุตรวจรับ', r.recvNote],
+      ['ปิดรายการ', r.a2By ? `${r.a2By} · ${r.a2At}` : ''], ['การเงิน', r.settle], ['เคลียร์เงิน', r.settleBy ? `${r.settleBy} · ${r.settleAt}` : '']]),
+    flagsBox(r.flags)));
+
+  const received = r.items.some((it) => it.received != null);
+  app.append(h('section', { class: 'card' }, h('h2', {}, '📦 รายการ'),
+    h('table', { class: 'items' },
+      h('tr', {}, h('th', {}, 'รายการ'), h('th', { class: 'r' }, 'สั่ง'), received ? h('th', { class: 'r' }, 'รับ') : null, received ? h('th', { class: 'r' }, 'บาท') : null),
+      ...r.items.map((it) => h('tr', {},
+        h('td', {}, it.name + (it.extra ? ' (นอกใบสั่ง)' : '')),
+        h('td', { class: 'r' }, it.extra ? '-' : `${fmtN(it.qty)} ${it.unit}`),
+        received ? h('td', { class: 'r ' + (it.result === 'ครบ' ? 'ok' : 'bad') }, it.received == null ? '-' : fmtN(it.received)) : null,
+        received ? h('td', { class: 'r' }, it.amount ? fmt(it.amount) : '-') : null)))));
+
+  const photos = [['รูปบิลร้าน', r.billImages], ['รูปของที่ร้าน', r.goodsImages], ['รูปตอนรับของ', r.recvImages]].filter((p) => p[1].length);
+  if (photos.length) app.append(h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลักฐาน'),
+    ...photos.flatMap(([label, list]) => [h('div', { class: 'mini' }, label), linkThumbs(list)]),
+    r.gps ? h('div', { class: 'hint' }, h('a', { href: r.gps.split(' ').pop(), target: '_blank' }, '📍 ดูตำแหน่งที่ร้านบนแผนที่')) : null));
+
+  // ปุ่มตามสิทธิ์
+  const acts = h('div', { class: 'actions' });
+  const run = async (action, extra, text) => {
+    overlay(true, text || 'กำลังบันทึก…');
+    try { const x = await api(action, { id: r.id, ...extra }); toast(x.message || 'บันทึกแล้ว', 4000); await route({ view: 'po', id: r.id }, false); }
+    catch (err) { toast(err.message, 5000); } finally { overlay(false); }
+  };
+  if (can.approve1) acts.append(h('div', { class: 'actions two' },
+    h('button', { class: 'btn primary', onclick: () => run('approve1', { approve: true }) }, '✅ อนุมัติสั่งซื้อ'),
+    h('button', { class: 'btn red', onclick: () => { const n = prompt('เหตุผลที่ไม่อนุมัติ'); if (n !== null) run('approve1', { approve: false, note: n }); } }, 'ไม่อนุมัติ')));
+  if (can.print) acts.append(h('button', { class: 'btn blue full', onclick: () => openExternal(res.printUrl) },
+    r.prints ? `🖨️ พิมพ์ซ้ำ (จะขึ้น "สำเนา")` : '🖨️ พิมพ์ใบสั่งของ'),
+    h('div', { class: 'hint' }, 'แนะนำให้เปิดจากคอมพิวเตอร์ที่ต่อเครื่องพิมพ์ (เปิด LINE บนคอมแล้วกดปุ่มนี้)'));
+  if (can.buy) acts.append(h('button', { class: 'btn primary full', onclick: () => go('buy', r.id) }, '📸 ส่งรูปบิลและของ'));
+  if (can.receive) acts.append(h('button', { class: 'btn blue full', onclick: () => go('receive', r.id) }, '📦 ตรวจรับของ'));
+  if (can.approve2) acts.append(
+    h('div', { class: 'info' }, '💵 ' + res.settlePreview.text),
+    h('div', { class: 'actions two' },
+      h('button', { class: 'btn primary', onclick: () => run('approve2', { approve: true }) }, '✅ ปิดรายการ'),
+      h('button', { class: 'btn line', onclick: () => { const n = prompt('ส่งกลับให้ตรวจใหม่เพราะ'); if (n !== null) run('approve2', { approve: false, note: n }); } }, '↩️ ส่งกลับตรวจใหม่')));
+  if (can.settle) acts.append(h('div', { class: 'info' }, '💵 ' + r.settle),
+    h('button', { class: 'btn primary full', onclick: () => { if (confirm(`ยืนยันว่าเคลียร์เงินแล้ว?\n${r.settle}`)) run('settle', {}); } }, '✅ เคลียร์เงินแล้ว'));
+  if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบสั่งซื้อนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิกใบสั่งซื้อ'));
+  Object.values(can.why || {}).forEach((w) => acts.append(h('div', { class: 'warn' }, '🔒 ' + w)));
+  if (res.verifyUrl) acts.append(h('div', { class: 'hint' }, h('a', { href: res.verifyUrl, target: '_blank' }, 'หน้าตรวจสอบ (ที่ร้านเห็นเมื่อสแกน QR)')));
+  if (acts.children.length) app.append(h('section', { class: 'card' }, acts));
+
+  // ประวัติ: ใครทำอะไร เมื่อไร (ผู้บริหาร/เสมียนทำแทนกันได้)
+  if (res.log && res.log.length) app.append(h('section', { class: 'card' }, h('h2', {}, '🕘 ประวัติการทำงาน'),
+    ...res.log.map((l) => h('div', { class: 'logrow' },
+      h('div', { class: 'lt' }, l.at),
+      h('div', {}, h('b', {}, l.action), ` — ${l.by}${l.role ? ' (' + l.role + ')' : ''}`, l.detail ? h('div', { class: 'hint' }, l.detail) : null)))));
+}
+
+function linkThumbs(list) {
+  return h('div', { class: 'thumbs' }, ...list.map((p) => h('div', { class: 'thumb' },
+    h('a', { href: p.url, target: '_blank', rel: 'noopener' }, h('img', { src: p.thumb, alt: '' })))));
+}
+function openExternal(url) {
+  if (!MOCK && liff.isInClient()) liff.openWindow({ url, external: true }); else window.open(url, '_blank');
+}
+
+/* ================== ผู้ไปซื้อ: ที่ร้าน (3 ภาษา) ================== */
+async function viewBuy() {
+  const res = await api('get', { id: state.id });
+  const r = state.record = res.record;
+  const render = () => {
+    header(r.vendor, r.id);
+    const app = $('app'); app.innerHTML = '';
+    app.append(langSwitch(render));
+    if (!res.can.buy) {
+      app.append(h('div', { class: 'card done' }, h('div', { class: 'ic' }, '✅'), h('h1', {}, r.status), h('div', { class: 'id' }, r.id)));
+      return setBar('', null);
+    }
+    const info = h('section', { class: 'card' },
+      h('div', { style: 'font-size:22px;font-weight:700' }, '🏪 ' + r.vendor),
+      h('div', { class: 'hint', style: 'font-size:15px' }, r.id),
+      r.payment === PAY.ADVANCE ? h('div', { style: 'margin-top:8px' }, '💵 ' + t('cash') + ' ', h('span', { class: 'cash' }, fmt(r.advance) + ' ฿')) : null,
+      h('div', { class: 'mini', style: 'margin-top:10px' }, '📦 ' + t('items')),
+      ...r.items.map((it) => h('div', { style: 'font-size:16px' }, `• ${it.name}  ×${fmtN(it.qty)} ${it.unit}`)));
+    const step = (ic, title, sub, key) => {
+      const sec = h('section', { class: 'card' },
+        h('div', { class: 'step' + (key && state.photos[key].length ? ' done' : '') }, h('div', { class: 'ic' }, ic),
+          h('div', { class: 'tx' }, title, h('div', { class: 'sub' }, sub))));
+      if (key) sec.append(h('div', { class: 'thumbs', id: 'th_' + key, style: 'margin-top:10px' }),
+        h('button', { class: 'btn camera bigcam', 'data-cam': key }, '📷 ' + t('cam')));
+      return sec;
+    };
+    app.append(info,
+      step('📄', '1. ' + t('s1'), t('s1b')),
+      step('🧾', '2. ' + t('s2'), t('s2b'), 'bill'),
+      step('📦', '3. ' + t('s3'), t('s3b'), 'goods'),
+      h('div', { id: 'gps', class: 'gps' }, '📍 ' + t('gpsWait')));
+    ['bill', 'goods'].forEach(renderThumbs);
+    bindCameraButtons({ bill: 'บิลร้าน', goods: 'ของที่ร้าน' });
+    showGps();
+    setBar('✅ ' + t('send'), submitBuy);
+  };
+  render();
+  requestLocation();
+}
+
+async function submitBuy() {
+  if (!state.photos.bill.length) { document.querySelector('[data-cam=bill]').scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('🧾 ' + t('needBill'), 4000); }
+  if (!state.photos.goods.length) { document.querySelector('[data-cam=goods]').scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('📦 ' + t('needGoods'), 4000); }
+  if (!state.location) await requestLocation();
+  $('submitBtn').disabled = true; overlay(true, t('sending'));
+  try {
+    await api('bought', { data: { id: state.record.id, location: state.location, billImages: state.photos.bill, goodsImages: state.photos.goods } });
+    showDone('✅', t('done'), state.record.id, '🏭 ' + t('doneSub'));
+  } catch (err) { toast(t('err') + ' — ' + err.message, 6000); }
+  finally { overlay(false); $('submitBtn').disabled = false; }
+}
+
+/* ================== เสมียน: ตรวจรับ + ใส่ราคาจากบิล ================== */
+async function viewReceive() {
+  const res = await api('get', { id: state.id });
+  const r = state.record = res.record;
+  header('ตรวจรับ ' + r.id, r.vendor, 'blue');
+  if (!res.can.receive) throw new Error(res.can.why.receive || `ใบนี้สถานะ "${r.status}" ตรวจรับไม่ได้`);
+  const app = $('app'); app.innerHTML = '';
+  const order = r.items.filter((it) => !it.extra);
+  const lines = order.map((it) => ({ received: '', price: '' }));
+  const extras = [];
+  let quality = 'ok';
+
+  app.append(h('section', { class: 'card' }, h('h2', {}, r.id, badge(r.status)),
+    h('dl', { class: 'kv' }, ...[['ร้านค้า', r.vendor], ['ผู้ไปซื้อ', r.buyer], ['วิธีชำระ', r.payment],
+      ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['ส่งรูปจากร้าน', r.boughtAt || 'ยังไม่ได้ส่ง']]
+      .filter((p) => p[1]).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+    flagsBox(r.flags)));
+
+  const billSec = h('section', { class: 'card' }, h('h2', {}, '🧾 บิลร้าน'));
+  if (r.billImages.length) billSec.append(h('div', { class: 'mini' }, 'รูปบิลจากผู้ไปซื้อ'), linkThumbs(r.billImages));
+  else billSec.append(h('div', { class: 'warn' }, 'ผู้ไปซื้อไม่ได้ส่งรูปบิล — ถ่ายรูปบิลร้านที่นี่ (ระบบจะติดข้อสังเกต)'),
+    h('div', { class: 'thumbs', id: 'th_bill', style: 'margin-top:8px' }), h('button', { class: 'btn camera', 'data-cam': 'bill' }, '📷 ถ่ายรูปบิลร้าน'));
+  if (r.goodsImages.length) billSec.append(h('div', { class: 'mini' }, 'รูปของที่ร้าน'), linkThumbs(r.goodsImages));
+  const billNo = h('input', { id: 'billNo', placeholder: 'เช่น 28 หรือ เล่ม 3 เลขที่ 28', autocomplete: 'off' });
+  const billTotal = h('input', { id: 'billTotal', type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: '0.00' });
+  billSec.append(h('div', { class: 'row2' }, h('div', {}, h('label', {}, 'เลขที่บิลร้าน'), billNo), h('div', {}, h('label', {}, 'ยอดรวมตามบิล *'), billTotal)));
+  app.append(billSec);
+
+  const sumBox = h('div'); const settleBox = h('div', { class: 'info' });
+  const update = () => {
+    const sum = order.reduce((s, _, i) => s + (Number(lines[i].received) || 0) * (Number(lines[i].price) || 0), 0)
+      + extras.reduce((s, x) => s + (Number(x.qty) || 0) * (Number(x.price) || 0), 0);
+    const total = Number(billTotal.value) || 0;
+    sumBox.innerHTML = '';
+    sumBox.append(h('div', { class: 'hint' }, `ราคารวมจากรายการ ${fmt(sum)} บาท`));
+    if (billTotal.value !== '' && Math.abs(sum - total) > 1) sumBox.append(h('div', { class: 'warn' }, `⚠️ ยอดบิล ${fmt(total)} ไม่เท่ากับราคารวมรายการ ${fmt(sum)} — ตรวจอีกครั้ง หรือเขียนเหตุผลในหมายเหตุ (เช่น ส่วนลด/VAT)`));
+    settleBox.textContent = '💵 ' + settleText(r, billTotal.value === '' ? sum : total);
+  };
+  billTotal.oninput = () => { billTotal.classList.remove('invalid'); update(); };
+
+  const itemSec = h('section', { class: 'card' }, h('h2', {}, '📦 นับของ + ราคาจากบิล ', h('span', { class: 'req' }, '* ทุกรายการ')));
+  order.forEach((it, i) => {
+    const rec = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', placeholder: 'รับจริง' });
+    const price = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: 'ราคา/หน่วย' });
+    const out = h('div', { class: 'res' });
+    const upd = () => {
+      rec.classList.remove('invalid'); price.classList.remove('invalid');
+      lines[i].received = rec.value; lines[i].price = price.value;
+      const parts = [];
+      if (rec.value !== '') {
+        const d = Number(rec.value) - it.qty;
+        parts.push(h('span', { class: d === 0 ? 'ok' : 'bad' }, d === 0 ? '✓ ครบ' : d < 0 ? `ขาด ${fmtN(-d)}` : `เกิน ${fmtN(d)}`));
+      }
+      if (rec.value !== '' && price.value !== '') parts.push(`  ·  ${fmt(Number(rec.value) * Number(price.value))} บาท`);
+      out.innerHTML = ''; out.append(...parts); update();
+    };
+    rec.oninput = upd; price.oninput = upd; rec.dataset.i = i;
+    itemSec.append(h('div', { class: 'item rline' }, h('div', { class: 'head' }, h('div', {}, it.name), h('span', {}, `สั่ง ${fmtN(it.qty)} ${it.unit}`)),
+      h('div', { class: 'g3' }, rec, price), out));
+  });
+  itemSec.append(h('button', { class: 'btn ghost full', onclick: () => itemSec.querySelectorAll('.rline').forEach((el, i) => {
+    const inp = el.querySelector('input'); inp.value = order[i].qty; inp.oninput();
+  }) }, '✓ ได้รับครบทุกรายการ'));
+  const extraBox = h('div');
+  const renderExtras = () => {
+    extraBox.innerHTML = '';
+    extras.forEach((x, i) => {
+      const name = h('input', { class: 'name', placeholder: 'ชื่อของที่ไม่อยู่ในใบสั่ง', value: x.name });
+      const qty = h('input', { type: 'number', inputmode: 'decimal', placeholder: 'จำนวน', value: x.qty });
+      const unit = h('input', { placeholder: 'หน่วย', value: x.unit });
+      const price = h('input', { type: 'number', inputmode: 'decimal', placeholder: 'ราคา/หน่วย', value: x.price });
+      [name, qty, unit, price].forEach((el) => (el.oninput = () => { x.name = name.value; x.qty = qty.value; x.unit = unit.value; x.price = price.value; update(); }));
+      extraBox.append(h('div', { class: 'item', style: 'border-color:#F0B400' }, name, h('div', { class: 'g3' }, qty, unit, price),
+        h('button', { class: 'del', 'aria-label': 'ลบ', onclick: () => { extras.splice(i, 1); renderExtras(); update(); } }, '×')));
+    });
+  };
+  itemSec.append(extraBox, h('button', { class: 'btn line full', style: 'margin-top:8px', onclick: () => { extras.push({ name: '', qty: '', unit: '', price: '' }); renderExtras(); } }, '+ มีของนอกใบสั่ง (ระบบจะแจ้งผู้บริหาร)'),
+    sumBox, settleBox);
+  app.append(itemSec);
+
+  const qSeg = h('div', { class: 'seg' }, h('div', { class: 'chip on', 'data-v': 'ok' }, 'ตรงตามที่สั่ง'), h('div', { class: 'chip', 'data-v': 'bad' }, 'ไม่ตรง / ชำรุด'));
+  qSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+    qSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
+    c.classList.add('on'); if (c.dataset.v === 'bad') c.classList.add('bad'); quality = c.dataset.v;
+  }));
+  const note = h('textarea', { id: 'rNote', placeholder: 'เช่น ขาด 2 ตัว ร้านจะส่งตามพรุ่งนี้' });
+  const confirmBox = h('input', { type: 'checkbox', id: 'confirm' });
+  app.append(h('section', { class: 'card' }, h('h2', {}, 'สภาพ / สเปกของ'), qSeg),
+    h('section', { class: 'card' }, h('h2', {}, '📸 รูปของตอนรับ ', h('span', { class: 'req' }, '*')),
+      h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปของที่ได้รับ'),
+      h('label', { for: 'rNote' }, 'หมายเหตุตรวจรับ'), note,
+      h('label', { class: 'check' }, confirmBox, h('span', {}, 'ข้าพเจ้าตรวจนับของจริงแล้ว เก็บใบสั่งของตัวจริงและบิลร้านไว้แล้ว'))));
+  bindCameraButtons({ bill: 'บิลร้าน (เสมียน)', recv: 'ของตอนรับ' });
+  requestLocation(); update();
+
+  setBar('ยืนยันผลตรวจรับ', async () => {
+    document.querySelectorAll('.invalid').forEach((x) => x.classList.remove('invalid'));
+    const errs = []; let first = null;
+    const bad = (el, msg) => { el.classList.add('invalid'); errs.push(msg); first = first || el; };
+    if (!r.billImages.length && !state.photos.bill.length) { errs.push('รูปบิลร้าน'); first = document.querySelector('[data-cam=bill]'); }
+    if (billTotal.value === '' || Number(billTotal.value) < 0) bad(billTotal, 'ยอดตามบิล');
+    itemSec.querySelectorAll('.rline').forEach((el, i) => {
+      const [a, b] = el.querySelectorAll('input');
+      if (lines[i].received === '' || Number(lines[i].received) < 0) bad(a, 'จำนวนที่รับ');
+      if (Number(lines[i].received) > 0 && lines[i].price === '') bad(b, 'ราคา');
+    });
+    if (!state.photos.recv.length) { errs.push('รูปตอนรับ'); first = first || document.querySelector('[data-cam=recv]'); }
+    if (!confirmBox.checked) { errs.push('ติ๊กยืนยัน'); first = first || confirmBox; }
+    const mismatch = order.some((it, i) => Number(lines[i].received) !== it.qty) || extras.some((x) => x.name.trim());
+    if (!first && (mismatch || quality === 'bad') && !note.value.trim()) bad(note, 'หมายเหตุ (ของไม่ตรงใบสั่ง)');
+    if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('กรุณา: ' + [...new Set(errs)].join(', '), 4000); }
+    $('submitBtn').disabled = true; overlay(true, 'กำลังบันทึกผลตรวจรับ…');
+    try {
+      const x = await api('receive', { data: {
+        id: r.id, billNo: billNo.value.trim(), billTotal: Number(billTotal.value), quality, note: note.value.trim(), confirmed: true,
+        lines: lines.map((l) => ({ received: Number(l.received), price: Number(l.price) || 0 })),
+        extras: extras.filter((e) => e.name.trim()).map((e) => ({ name: e.name.trim(), qty: Number(e.qty), unit: e.unit.trim(), price: Number(e.price) || 0 })),
+        location: state.location, receiveImages: state.photos.recv, billImages: state.photos.bill,
+      } });
+      showDone(/ครบ/.test(x.result) && !/สเปก/.test(x.result) ? '✅' : '⚠️', 'บันทึกผลตรวจรับแล้ว', r.id,
+        `${x.result}\n💵 ${x.settle.text}\nรอผู้บริหารปิดรายการ (เมนู "รอปิดรายการ")`);
+    } catch (err) { toast('บันทึกไม่สำเร็จ: ' + err.message, 5000); }
+    finally { overlay(false); $('submitBtn').disabled = false; }
+  }, 'blue');
+}
+
+/** สูตรเดียวกับ settlement_() ฝั่งเซิร์ฟเวอร์ — ไว้แสดงตัวอย่างก่อนบันทึก */
+function settleText(r, total) {
+  if (r.payment === PAY.ADVANCE) {
+    const d = Math.round((r.advance - total) * 100) / 100;
+    if (d > 0) return `${r.buyer} คืนเงินทอน ${fmt(d)} บาท (เบิก ${fmt(r.advance)} − จ่ายจริง ${fmt(total)})`;
+    if (d < 0) return `บริษัทจ่ายเพิ่มให้ ${r.buyer} ${fmt(-d)} บาท (ใช้เกินเงินเบิก)`;
+    return 'เงินเบิกพอดี ไม่มีเงินทอน';
+  }
+  if (r.payment === PAY.SELF) return `คืนเงินให้ ${r.buyer} ${fmt(total)} บาท (สำรองจ่าย)`;
+  return `วางบิล — รอใบแจ้งหนี้จาก ${r.vendor}`;
+}
+
+/* ================== ตำแหน่ง GPS ================== */
+function showGps() {
+  const el = $('gps'); if (!el) return;
+  if (state.location) { el.className = 'gps ok'; el.textContent = `📍 ${t('gpsOk')} (±${Math.round(state.location.acc)} ม.)`; el.onclick = null; }
+  else if (state.gpsFailed) { el.className = 'gps bad'; el.textContent = '📍 ' + t('gpsBad'); el.onclick = requestLocation; }
+}
+function requestLocation() {
+  if (!navigator.geolocation) { state.gpsFailed = true; showGps(); return Promise.resolve(); }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      state.location = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+      state.gpsFailed = false; showGps(); resolve();
+    }, () => { state.gpsFailed = true; showGps(); resolve(); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  });
+}
+
+/* ================== กล้อง + ลายน้ำ ================== */
+let camTarget = null, camLabels = {};
+function bindCameraButtons(labels) {
+  camLabels = labels;
+  document.querySelectorAll('[data-cam]').forEach((b) => (b.onclick = () => {
+    camTarget = b.dataset.cam;
+    if (state.photos[camTarget].length >= MAX_IMAGES) return toast(t('max'));
+    $('camInput').value = ''; $('camInput').click();
+  }));
+}
+$('camInput').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file || !camTarget) return;
+  overlay(true, '…');
+  try {
+    const takenAt = file.lastModified || Date.now();
+    const dataUrl = await processImage(file, camLabels[camTarget] || camTarget, new Date());
+    state.photos[camTarget].push({ dataUrl, takenAt });
+    renderThumbs(camTarget);
+    if (Date.now() - takenAt > 30 * 60000) toast('⚠️ ' + t('old'), 4000);
+    const step = document.querySelector(`[data-cam=${camTarget}]`)?.closest('.card')?.querySelector('.step');
+    if (step) step.classList.add('done');
+  } catch (err) { toast(err.message); } finally { overlay(false); }
+};
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('ไฟล์รูปไม่รองรับ')); };
+    img.src = url;
+  });
+}
+/** ย่อรูป + ประทับ เลขใบสั่ง / ประเภทรูป / ชื่อ / วันเวลา / GPS ลงบนรูป */
+async function processImage(file, label, when) {
+  const img = await loadImage(file);
+  const scale = Math.min(1, IMG_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale), hh = Math.round(img.naturalHeight * scale);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
+  const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, w, hh);
+  const fs = Math.max(14, Math.round(w / 32));
+  const loc = state.location ? `GPS ${state.location.lat.toFixed(5)}, ${state.location.lng.toFixed(5)}` : 'GPS: -';
+  const lines = [`SKS • ${state.record ? state.record.id : ''} • ${label}`,
+    `${state.profile.displayName} • ${when.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'medium' })}`, loc];
+  const pad = Math.round(fs * 0.6), lh = Math.round(fs * 1.35), bh = lh * lines.length + pad * 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, hh - bh, w, bh);
+  ctx.fillStyle = '#fff'; ctx.font = `600 ${fs}px Sarabun, sans-serif`; ctx.textBaseline = 'top';
+  lines.forEach((s, i) => ctx.fillText(s, pad, hh - bh + pad + i * lh, w - pad * 2));
+  return cv.toDataURL('image/jpeg', IMG_QUALITY);
+}
+function renderThumbs(key) {
+  const box = $('th_' + key); if (!box) return; box.innerHTML = '';
+  state.photos[key].forEach((p, i) => box.append(h('div', { class: 'thumb' }, h('img', { src: p.dataUrl, alt: '' }),
+    h('button', { type: 'button', 'aria-label': 'ลบรูป', onclick: () => { state.photos[key].splice(i, 1); renderThumbs(key); } }, '×'))));
+}
+
+/* ================== หน้าจบ ================== */
+function showDone(icon, title, id, text, againLabel, againFn) {
+  setBar('', null);
+  const app = $('app'); app.innerHTML = '';
+  app.append(h('div', { class: 'card done' }, h('div', { class: 'ic' }, icon), h('h1', {}, title), h('div', { class: 'id' }, id),
+    h('p', { class: 'hint', style: 'white-space:pre-line;font-size:15px' }, text),
+    h('button', { class: 'btn primary', onclick: () => go('home') }, '🏠 ' + (state.view === 'buy' ? t('close') : 'หน้าแรก')),
+    againFn ? h('button', { class: 'btn ghost', onclick: againFn }, againLabel) : null));
+  scrollTo(0, 0);
+}
+
+/* ================== โหมดทดสอบ (ไม่ต่อเซิร์ฟเวอร์) ================== */
+const MOCK_PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="#cfd8dc"/><text x="150" y="160" font-size="28" text-anchor="middle" fill="#455a64">ตัวอย่างรูป</text></svg>');
+const MOCK_IMG = [{ url: '#', thumb: MOCK_PH }];
+const mockDB = (() => {
+  const base = { dept: 'ซ่อมบำรุง', creator: 'นิด', created: '16/11/2569 08:10', note: 'ซ่อมสายพานเครื่องไส', prints: 0, flags: '', billImages: [], goodsImages: [], recvImages: [],
+    a1By: '', a1At: '', validUntil: '', boughtAt: '', gps: '', billNo: '', total: 0, receiver: '', receivedAt: '', result: '', recvNote: '', a2By: '', a2At: '', settle: '', settleBy: '', settleAt: '', advance: 0 };
+  const items = [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น' }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง' }];
+  const mk = (o) => ({ ...base, items: items.map((x) => ({ ...x, received: null, price: null, amount: 0, result: '', extra: false })), ...o });
+  const db = [
+    mk({ id: 'PO6911-0005', vendor: 'ร้านตระกูลพานิช', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.CREDIT, status: ST.WAIT_A1 }),
+    mk({ id: 'PO6911-0004', vendor: 'ร้านสง่ายานยนต์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.ADVANCE, advance: 2000, status: ST.TO_BUY, a1By: 'คุณสมชาย', a1At: '16/11/2569 09:12', validUntil: '23/11/2569' }),
+    mk({ id: 'PO6911-0003', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.BOUGHT, a1By: 'คุณสมชาย', a1At: '15/11/2569 10:00', validUntil: '22/11/2569', prints: 1, boughtAt: '15/11/2569 14:20', billImages: MOCK_IMG, goodsImages: MOCK_IMG, gps: '12.1,102.5 https://maps.google.com/?q=12.1,102.5', flags: 'รูปบิลร้านถ่ายไว้ก่อนส่ง 45 นาที' }),
+    mk({ id: 'PO6911-0002', vendor: 'ร้านสง่ายานยนต์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.ADVANCE, advance: 2000, status: ST.WAIT_A2, a1By: 'คุณสมชาย', a1At: '14/11/2569 09:00', validUntil: '21/11/2569', prints: 1, boughtAt: '14/11/2569 11:30', billImages: MOCK_IMG, goodsImages: MOCK_IMG, recvImages: MOCK_IMG,
+      billNo: '28', total: 1480, receiver: 'นิด', receivedAt: '14/11/2569 15:00', result: 'ไม่ตรงใบสั่ง', recvNote: 'ลวดเชื่อมขาด 1 กล่อง ร้านส่งตามพรุ่งนี้', flags: 'ของไม่ตรงใบสั่ง 1 รายการ', settle: 'Aung Ko คืนเงินทอน 520.00 บาท (เบิก 2,000.00 − จ่ายจริง 1,480.00)',
+      items: [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น', received: 1, price: 160, amount: 160, result: 'ครบ', extra: false }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง', received: 1, price: 1320, amount: 1320, result: 'ขาด 1', extra: false }] }),
+    mk({ id: 'PO6911-0001', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.WAIT_SETTLE, total: 160, settle: 'คืนเงินให้ Sokha 160.00 บาท (สำรองจ่าย)', a2By: 'คุณสมชาย', a2At: '13/11/2569 13:05' }),
+  ];
+  return db;
+})();
+function mockProfile() {
+  const as = qs.get('as') || 'clerk';
+  state.profile = { displayName: { clerk: 'นิด (เสมียน)', exec: 'คุณสมชาย (ผู้บริหาร)', buyer: 'Aung Ko' }[as] };
+  document.querySelectorAll('#mockBar [data-as]').forEach((b) => b.classList.toggle('on', b.dataset.as === as));
+}
+/** สลับบทบาทในหน้าเดิม (ไม่ต้องโหลดหน้าใหม่) */
+async function mockSwitch(as) {
+  qs = new URLSearchParams('?mock&as=' + as);
+  mockProfile();
+  state.me = await api('me');
+  await route({ view: 'home' }, false);
+}
+function mockWho() {
+  const as = qs.get('as') || 'clerk';
+  return { uid: as === 'buyer' ? 'Ubuyer' : as === 'exec' ? 'Uexec' : 'Uclerk', isClerk: as === 'clerk', isExec: as === 'exec', role: { clerk: 'เสมียน', exec: 'ผู้บริหาร', buyer: 'ผู้ซื้อ' }[as] };
+}
+function mockLog(r) {
+  const L1 = [{ at: r.created, action: 'สร้างใบสั่งซื้อ', by: 'นิด', role: 'เสมียน', detail: `${r.vendor} · ${r.payment} · ผู้ไปซื้อ ${r.buyer}` }];
+  if (r.a1By) L1.push({ at: r.a1At, action: 'อนุมัติสั่งซื้อ (รอบ 1)', by: 'คุณวิชัย', role: 'ผู้บริหาร', detail: 'อนุมัติแทนคุณสมชาย (ดูแลฝ่ายผลิต)' });
+  if (r.prints) L1.push({ at: r.a1At, action: 'พิมพ์ใบสั่งของ', by: 'ต้อม', role: 'เสมียน', detail: 'ต้นฉบับ (A4 = 2 ใบ)' });
+  if (r.boughtAt) L1.push({ at: r.boughtAt, action: 'ส่งรูปจากร้าน', by: r.buyer, role: 'ผู้ซื้อ', detail: 'บิล 1 รูป · ของ 1 รูป · มีพิกัด GPS' });
+  if (r.receivedAt) L1.push({ at: r.receivedAt, action: 'ตรวจรับ', by: r.receiver, role: 'เสมียน', detail: `${r.result} · บิลร้าน ${r.billNo} · ยอด ${fmt(r.total)} บาท` });
+  return L1;
+}
+function mockPerms(r) {
+  const w = mockWho(); const s = r.status;
+  return { view: true, approve1: w.isExec && s === ST.WAIT_A1, print: (w.isClerk || w.isExec) && (s === ST.TO_BUY || s === ST.BOUGHT),
+    buy: r.buyerId === w.uid && s === ST.TO_BUY, receive: w.isClerk && (s === ST.TO_BUY || s === ST.BOUGHT),
+    approve2: w.isExec && s === ST.WAIT_A2, settle: w.isClerk && s === ST.WAIT_SETTLE, cancel: (w.isClerk || w.isExec) && (s === ST.WAIT_A1 || s === ST.TO_BUY), why: {} };
+}
+async function mockApi(action, x) {
+  await new Promise((r) => setTimeout(r, 300));
+  const w = mockWho();
+  const find = (id) => { const r = mockDB.find((p) => p.id === id); if (!r) throw new Error('ไม่พบ ' + id); return r; };
+  const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags });
+  const open = [ST.WAIT_A1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_A2, ST.WAIT_SETTLE];
+  console.log('[mock]', action, JSON.parse(JSON.stringify(x, (k, v) => (typeof v === 'string' && v.length > 200 ? v.slice(0, 50) + '…' : v))));
+  switch (action) {
+    case 'me': return { ok: true, user: { name: state.profile.displayName, role: w.role, lang: '', isClerk: w.isClerk, isExec: w.isExec },
+      departments: ['ฝ่ายผลิต', 'ซ่อมบำรุง', 'คลังสินค้า', 'สำนักงาน'], vendors: [{ name: 'ร้านสง่ายานยนต์', payment: PAY.CREDIT }, { name: 'ร้านตระกูลพานิช', payment: PAY.ADVANCE }],
+      payments: Object.values(PAY), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
+    case 'setLang': return { ok: true };
+    case 'list': return { ok: true, jobs: mockDB.filter((p) => p.buyerId === w.uid && p.status === ST.TO_BUY).map(brief),
+      myRecent: mockDB.filter((p) => p.buyerId === w.uid && p.status !== ST.TO_BUY).map(brief),
+      open: mockDB.filter((p) => open.includes(p.status)).map(brief), recent: mockDB.filter((p) => !open.includes(p.status)).map(brief) };
+    case 'get': { const r = find(x.id); return { ok: true, record: r, can: mockPerms(r), printUrl: 'about:blank', verifyUrl: '#', settlePreview: { text: r.settle || settleText(r, r.total) },
+      log: (w.isClerk || w.isExec) ? mockLog(r) : [] }; }
+    case 'create': return { ok: true, id: 'PO6911-0006', notified: true };
+    case 'approve1': { const r = find(x.id); r.status = x.approve ? ST.TO_BUY : ST.REJECTED; r.a1By = 'คุณสมชาย'; r.a1At = 'เมื่อสักครู่'; r.validUntil = '23/11/2569'; return { ok: true, message: x.approve ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ' }; }
+    case 'bought': { const r = find(x.data.id); r.status = ST.BOUGHT; r.billImages = MOCK_IMG; r.goodsImages = MOCK_IMG; return { ok: true, id: r.id }; }
+    case 'receive': { const r = find(x.data.id); r.status = ST.WAIT_A2; r.total = x.data.billTotal; r.settle = settleText(r, r.total);
+      return { ok: true, id: r.id, result: x.data.lines.every((l, i) => l.received === r.items[i].qty) ? 'ครบตามใบสั่ง' : 'ไม่ตรงใบสั่ง', settle: { text: r.settle } }; }
+    case 'approve2': { const r = find(x.id); r.status = x.approve ? (r.payment === PAY.CREDIT ? ST.CLOSED : ST.WAIT_SETTLE) : ST.BOUGHT; return { ok: true, message: 'บันทึกแล้ว' }; }
+    case 'settle': { find(x.id).status = ST.CLOSED; return { ok: true, message: 'เคลียร์เงินแล้ว' }; }
+    case 'cancel': { find(x.id).status = ST.CANCELLED; return { ok: true, message: 'ยกเลิกแล้ว' }; }
+  }
+  throw new Error('unknown action ' + action);
+}
+
+init();
+</script>
+</body>
+</html>
