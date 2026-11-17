@@ -152,6 +152,21 @@ const ST = { WAIT_A1: 'รออนุมัติสั่งซื้อ', TO_
 const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's-buy', [ST.WAIT_A2]: 's-wait',
   [ST.WAIT_SETTLE]: 's-settle', [ST.CLOSED]: 's-ok', [ST.REJECTED]: 's-bad', [ST.CANCELLED]: 's-gray' };
 
+/* ประเภทใบ — ใช้ขั้นตอนเดียวกัน ต่างกันที่คำเรียกและรูปหลักฐาน (ตรงกับ KIND_WORD ฝั่งเซิร์ฟเวอร์) */
+const KIND = { BUY: 'ซื้อของ', SHOP: 'ส่งซ่อมที่ร้าน', SITE: 'ช่างมาซ่อมที่โรงงาน' };
+const KW = {
+  [KIND.BUY]: { ic: '🛒', doc: 'ใบสั่งของ', ask: 'สั่งซื้อ', person: 'ผู้ไปซื้อ', vendor: 'ร้านค้า', toDo: 'อนุมัติแล้ว รอซื้อ', done: 'ซื้อแล้ว รอตรวจรับ',
+    start: '📸 ส่งรูปบิลและของ', recv: '📦 ตรวจรับของ' },
+  [KIND.SHOP]: { ic: '🔧', doc: 'ใบส่งซ่อม', ask: 'ส่งซ่อม', person: 'ผู้นำส่งซ่อม', vendor: 'ร้านซ่อม', toDo: 'อนุมัติแล้ว รอนำของไปซ่อม', done: 'อยู่ร้านซ่อม รอรับคืน',
+    start: '📸 ถ่ายรูปก่อนนำของไปซ่อม', recv: '🔧 รับของซ่อมคืน / ตรวจงาน' },
+  [KIND.SITE]: { ic: '👷', doc: 'ใบสั่งงานซ่อม', ask: 'จ้างช่างซ่อม', person: 'ผู้ดูแลงานซ่อม', vendor: 'ช่าง/ร้าน', toDo: 'อนุมัติแล้ว รอช่างเข้าซ่อม', done: 'ช่างกำลังซ่อม รอตรวจงาน',
+    start: '📸 ถ่ายรูปก่อนช่างเริ่มซ่อม', recv: '🔧 ตรวจงานซ่อม' },
+};
+const TESTS = ['ใช้งานได้', 'ยังมีปัญหา', 'ซ่อมไม่ได้'];
+const kw = (r) => KW[r && r.kind] || KW[KIND.BUY];
+const isRepair = (r) => !!r && (r.kind === KIND.SHOP || r.kind === KIND.SITE);
+const stText = (r) => r.status === ST.TO_BUY ? kw(r).toDo : r.status === ST.BOUGHT ? kw(r).done : r.status;
+
 /* ข้อความหน้าผู้ไปซื้อ 3 ภาษา — ควรให้คนงานที่พูดภาษานั้นตรวจทาน */
 const L = {
   th: { name: 'ไทย', jobs: 'งานซื้อของของฉัน', none: 'ยังไม่มีงานซื้อของ', tap: 'แตะเพื่อเริ่ม',
@@ -160,21 +175,27 @@ const L = {
     cam: 'ถ่ายรูป', send: 'ส่ง', sending: 'กำลังส่ง…', cash: 'เงินที่เบิก', items: 'ของที่ต้องซื้อ',
     needBill: 'ต้องถ่ายรูปบิล', needGoods: 'ต้องถ่ายรูปของ', done: 'ส่งแล้ว', doneSub: 'นำของและบิลไปให้เสมียน',
     close: 'ปิด', err: 'ส่งไม่สำเร็จ ลองใหม่', max: 'ถ่ายได้สูงสุด 5 รูป', old: 'รูปนี้ไม่ใช่รูปที่เพิ่งถ่าย',
-    gpsOk: 'ได้ตำแหน่งแล้ว', gpsWait: 'กำลังหาตำแหน่ง…', gpsBad: 'เปิดตำแหน่ง (GPS) แล้วแตะที่นี่', myRecent: 'งานที่ส่งแล้ว' },
+    gpsOk: 'ได้ตำแหน่งแล้ว', gpsWait: 'กำลังหาตำแหน่ง…', gpsBad: 'เปิดตำแหน่ง (GPS) แล้วแตะที่นี่', myRecent: 'งานที่ส่งแล้ว',
+    r1: 'ถ่ายรูปของก่อนซ่อม', r1b: 'ให้เห็นเลขเครื่อง/ป้ายทรัพย์สินชัด', r2: 'ยื่นใบส่งซ่อมให้ร้าน/ช่าง', r2b: 'บอกให้คืนอะไหล่เก่าทุกชิ้น',
+    needBefore: 'ต้องถ่ายรูปก่อนซ่อม', doneRSub: 'นำของไปส่งร้านซ่อม พร้อมใบส่งซ่อม' },
   my: { name: 'မြန်မာ', jobs: 'ကျွန်ုပ်၏ ဝယ်ယူရန်အလုပ်', none: 'ဝယ်ရန်အလုပ် မရှိသေးပါ', tap: 'စရန် နှိပ်ပါ',
     s1: 'မှာစာကို ဆိုင်သို့ ပေးပါ', s1b: 'ဘောက်ချာပေါ်တွင် PO နံပါတ် ရေးခိုင်းပါ',
     s2: 'ဆိုင်ဘောက်ချာ ဓာတ်ပုံရိုက်ပါ', s2b: 'ဆိုင်ဘောက်ချာ (သို့) ဈေးနှုန်းရေးထားသော မှာစာ', s3: 'ဝယ်ထားသောပစ္စည်း ဓာတ်ပုံရိုက်ပါ', s3b: 'ပစ္စည်းအားလုံး ရှင်းရှင်းမြင်ရအောင် ချထားပါ',
     cam: 'ဓာတ်ပုံရိုက်', send: 'ပို့မည်', sending: 'ပို့နေသည်…', cash: 'ထုတ်ယူထားသောငွေ', items: 'ဝယ်ရမည့်ပစ္စည်း',
     needBill: 'ဘောက်ချာဓာတ်ပုံ လိုအပ်သည်', needGoods: 'ပစ္စည်းဓာတ်ပုံ လိုအပ်သည်', done: 'ပို့ပြီးပါပြီ', doneSub: 'ပစ္စည်းနှင့် ဘောက်ချာကို စာရေးထံ ယူသွားပါ',
     close: 'ပိတ်မည်', err: 'ပို့၍မရပါ၊ ထပ်ကြိုးစားပါ', max: 'ဓာတ်ပုံ ၅ ပုံအထိသာ', old: 'ဤဓာတ်ပုံသည် ယခုရိုက်ထားခြင်း မဟုတ်ပါ',
-    gpsOk: 'တည်နေရာ ရပြီ', gpsWait: 'တည်နေရာ ရှာနေသည်…', gpsBad: 'တည်နေရာ (GPS) ဖွင့်ပြီး ဒီမှာနှိပ်ပါ', myRecent: 'ပို့ပြီးသောအလုပ်' },
+    gpsOk: 'တည်နေရာ ရပြီ', gpsWait: 'တည်နေရာ ရှာနေသည်…', gpsBad: 'တည်နေရာ (GPS) ဖွင့်ပြီး ဒီမှာနှိပ်ပါ', myRecent: 'ပို့ပြီးသောအလုပ်',
+    r1: 'မပြင်မီ ပစ္စည်းဓာတ်ပုံရိုက်ပါ', r1b: 'စက်နံပါတ်/ပိုင်ဆိုင်မှုတံဆိပ် ရှင်းရှင်းမြင်ရပါစေ', r2: 'ပြင်ဆင်ရန်စာကို ဆိုင်/ဆရာ ထံ ပေးပါ', r2b: 'လဲထားသော အပိုပစ္စည်းဟောင်းအားလုံး ပြန်ပေးရန် ပြောပါ',
+    needBefore: 'မပြင်မီ ဓာတ်ပုံ လိုအပ်သည်', doneRSub: 'ပစ္စည်းကို ပြင်ဆင်ရန်စာနှင့်အတူ ပြင်ဆိုင်သို့ ယူသွားပါ' },
   km: { name: 'ខ្មែរ', jobs: 'ការងារទិញរបស់ខ្ញុំ', none: 'មិនទាន់មានការងារទិញទេ', tap: 'ចុចដើម្បីចាប់ផ្តើម',
     s1: 'ប្រគល់ប័ណ្ណបញ្ជាទិញឱ្យហាង', s1b: 'ឱ្យហាងសរសេរលេខ PO លើវិក្កយបត្រ',
     s2: 'ថតរូបវិក្កយបត្រហាង', s2b: 'វិក្កយបត្រហាង ឬប័ណ្ណបញ្ជាទិញដែលហាងសរសេរតម្លៃ', s3: 'ថតរូបទំនិញដែលបានទិញ', s3b: 'ដាក់ទំនិញទាំងអស់ឱ្យឃើញច្បាស់',
     cam: 'ថតរូប', send: 'ផ្ញើ', sending: 'កំពុងផ្ញើ…', cash: 'ប្រាក់ដែលបានបើក', items: 'ទំនិញដែលត្រូវទិញ',
     needBill: 'ត្រូវថតរូបវិក្កយបត្រ', needGoods: 'ត្រូវថតរូបទំនិញ', done: 'បានផ្ញើរួច', doneSub: 'យកទំនិញ និងវិក្កយបត្រទៅឱ្យស្មៀន',
     close: 'បិទ', err: 'ផ្ញើមិនបានទេ សូមព្យាយាមម្តងទៀត', max: 'ថតបានច្រើនបំផុត ៥ រូប', old: 'រូបនេះមិនមែនទើបថតទេ',
-    gpsOk: 'បានទីតាំងហើយ', gpsWait: 'កំពុងរកទីតាំង…', gpsBad: 'បើកទីតាំង (GPS) ហើយចុចទីនេះ', myRecent: 'ការងារដែលបានផ្ញើ' },
+    gpsOk: 'បានទីតាំងហើយ', gpsWait: 'កំពុងរកទីតាំង…', gpsBad: 'បើកទីតាំង (GPS) ហើយចុចទីនេះ', myRecent: 'ការងារដែលបានផ្ញើ',
+    r1: 'ថតរូបរបស់មុនជួសជុល', r1b: 'ឱ្យឃើញលេខម៉ាស៊ីន/ស្លាកទ្រព្យសម្បត្តិច្បាស់', r2: 'ប្រគល់ប័ណ្ណបញ្ជូនជួសជុលឱ្យហាង/ជាង', r2b: 'ប្រាប់ឱ្យប្រគល់គ្រឿងបន្លាស់ចាស់ទាំងអស់មកវិញ',
+    needBefore: 'ត្រូវថតរូបមុនជួសជុល', doneRSub: 'យករបស់ទៅហាងជួសជុល ជាមួយប័ណ្ណបញ្ជូនជួសជុល' },
 };
 
 /* ================== สถานะ ================== */
@@ -199,7 +220,8 @@ function toast(msg, ms = 3000) {
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 function overlay(on, text) { $('overlay').classList.toggle('show', on); if (text) $('overlayText').textContent = text; }
-function badge(status) { return h('span', { class: 'badge ' + (ST_CLASS[status] || 's-gray') }, status); }
+/** ป้ายสถานะ — ส่งใบทั้งใบมาเพื่อให้ใบซ่อมใช้คำของงานซ่อม */
+function badge(r) { const s = typeof r === 'string' ? { status: r } : r; return h('span', { class: 'badge ' + (ST_CLASS[s.status] || 's-gray') }, stText(s)); }
 function setBar(label, fn, cls) {
   const b = $('submitBtn'); b.textContent = label; b.onclick = fn; b.className = 'btn primary full ' + (cls || '');
   $('bar').classList.toggle('hidden', !fn);
@@ -258,7 +280,7 @@ async function route(s, push) {
     try { history.pushState(s, '', '?' + new URLSearchParams({ ...(MOCK ? { mock: '', as: qs.get('as') || 'clerk' } : {}), mode: s.view, ...(s.id ? { id: s.id } : {}) })); }
     catch (_) { try { history.pushState(s, ''); } catch (__) { /* หน้าทดสอบแบบ data: URL */ } }
   }
-  state.view = s.view; state.id = s.id || ''; state.photos = { bill: [], goods: [], recv: [] };
+  state.view = s.view; state.id = s.id || ''; state.photos = { bill: [], goods: [], recv: [], before: [], oldpart: [] };
   setBar('', null); scrollTo(0, 0);
   $('app').innerHTML = '<div class="center">กำลังโหลด…</div>';
   try {
@@ -286,23 +308,26 @@ async function viewHome() {
     app.append(h('div', { class: 'group' }, '🛒 ' + t('jobs')));
     if (!data.jobs.length) app.append(h('div', { class: 'card empty', style: 'font-size:18px' }, t('none')));
     data.jobs.forEach((p) => app.append(h('div', { class: 'job', onclick: () => go('buy', p.id) },
-      h('div', { class: 'ic' }, '🛒'),
+      h('div', { class: 'ic' }, kw(p).ic),
       h('div', {}, h('div', { class: 'v' }, p.vendor), h('div', { class: 'm' }, `${p.id} · ${t('tap')} ›`)))));
   }
 
-  if (u.isClerk) app.append(h('button', { class: 'btn primary full', style: 'margin:8px 0 4px', onclick: () => go('create') }, '+ สร้างใบสั่งซื้อ'));
+  if (u.isClerk) app.append(h('button', { class: 'btn primary full', style: 'margin:8px 0 4px', onclick: () => go('create') }, '+ สร้างใบใหม่ (ซื้อของ / ส่งซ่อม)'));
 
   if (officer) {
     const groups = [
       [ST.WAIT_A2, u.isExec ? '✍️ รอปิดรายการ — แตะเพื่อปิด' : '✍️ รอปิดรายการ (รอผู้บริหาร)'],
-      [ST.WAIT_A1, u.isExec ? '🕐 รออนุมัติสั่งซื้อ — แตะเพื่ออนุมัติ' : '🕐 รออนุมัติสั่งซื้อ (รอผู้บริหาร)'],
-      ['print', '🖨️ อนุมัติแล้ว — รอพิมพ์ใบสั่งของ'],
-      [ST.BOUGHT, '📦 ซื้อแล้ว — รอตรวจรับ'],
-      ['tobuy', '🛒 พิมพ์แล้ว — ผู้ไปซื้อกำลังไปซื้อ'],
+      [ST.WAIT_A1, u.isExec ? '🕐 รออนุมัติ — แตะเพื่ออนุมัติ' : '🕐 รออนุมัติ (รอผู้บริหาร)'],
+      ['print', '🖨️ อนุมัติแล้ว — รอพิมพ์ใบ'],
+      ['bought', '📦 ซื้อแล้ว — รอตรวจรับ'],
+      ['repairing', '🔧 อยู่ระหว่างซ่อม — รอรับคืน / ตรวจงาน'],
+      ['tobuy', '🛒 พิมพ์แล้ว — รอไปซื้อ / รอส่งซ่อม / รอช่าง'],
       [ST.WAIT_SETTLE, '💵 รอเคลียร์เงิน'],
     ];
     const pick = (k) => data.open.filter((p) => k === 'print' ? p.status === ST.TO_BUY && !p.prints
-      : k === 'tobuy' ? p.status === ST.TO_BUY && p.prints : p.status === k);
+      : k === 'tobuy' ? p.status === ST.TO_BUY && p.prints
+      : k === 'bought' ? p.status === ST.BOUGHT && !isRepair(p)
+      : k === 'repairing' ? p.status === ST.BOUGHT && isRepair(p) : p.status === k);
     groups.forEach(([k, title]) => {
       const list = pick(k);
       app.append(h('div', { class: 'group' }, h('span', {}, title), h('span', {}, String(list.length))));
@@ -321,10 +346,14 @@ async function viewHome() {
 
 function poRow(p) {
   const money = p.total ? `${fmt(p.total)} บาท` : p.advance ? `เบิก ${fmt(p.advance)}` : '';
+  const w = kw(p);
+  // ของที่อยู่ร้านซ่อมนาน → ขึ้นสีแดงให้เห็น (เกิน 14 วัน)
+  const away = isRepair(p) && p.status === ST.BOUGHT && p.days != null
+    ? h('span', { class: p.days >= 14 ? 'bad' : '' }, ` · ${p.kind === KIND.SHOP ? 'อยู่ร้าน' : 'เริ่มซ่อมมา'} ${p.days} วัน`) : null;
   return h('div', { class: 'po', onclick: () => go('po', p.id) },
-    h('div', { class: 'r1' }, h('span', { class: 'id' }, (p.flagged ? '⚠️ ' : '') + p.id), badge(p.status)),
+    h('div', { class: 'r1' }, h('span', { class: 'id' }, (p.flagged ? '⚠️ ' : '') + (isRepair(p) ? w.ic + ' ' : '') + p.id), badge(p)),
     h('div', { class: 'v' }, p.vendor),
-    h('div', { class: 'm' }, [p.buyer && 'ผู้ไปซื้อ ' + p.buyer, p.payment, money, p.created].filter(Boolean).join(' · ')));
+    h('div', { class: 'm' }, [p.buyer && `${w.person} ${p.buyer}`, p.payment, money, p.created].filter(Boolean).join(' · '), away));
 }
 
 function langSwitch(onChange) {
@@ -336,17 +365,31 @@ function langSwitch(onChange) {
 
 /* ================== เสมียน: สร้างใบสั่งซื้อ ================== */
 async function viewCreate() {
-  header('สร้างใบสั่งซื้อ', 'ยังไม่ต้องใส่ราคา — ราคาใส่ตอนตรวจรับ');
   const m = state.me;
   if (!m.user.isClerk) throw new Error('เฉพาะเสมียนเท่านั้น');
-  const f = { payment: PAY.CREDIT, items: [{ name: '', qty: '', unit: '' }] };
+  const kind = state.kind || KIND.BUY;
+  const w = KW[kind];
+  const repair = kind !== KIND.BUY;
+  header('สร้าง' + w.doc, repair ? 'ยังไม่ต้องใส่ราคา — ราคาใส่ตอนรับของคืน/ตรวจงาน' : 'ยังไม่ต้องใส่ราคา — ราคาใส่ตอนตรวจรับ');
+  const blank = () => (repair ? { name: '', qty: '1', unit: 'เครื่อง', asset: '' } : { name: '', qty: '', unit: '', asset: '' });
+  const f = { payment: PAY.CREDIT, items: [blank()] };
   const app = $('app'); app.innerHTML = '';
 
-  const vendor = h('input', { id: 'vendor', list: 'vendorList', placeholder: 'เลือกหรือพิมพ์ชื่อร้าน', autocomplete: 'off' });
+  // เลือกประเภทใบก่อน (เปลี่ยนแล้วฟอร์มเริ่มใหม่)
+  app.append(h('section', { class: 'card' }, h('h2', {}, 'ประเภทใบ'),
+    h('div', { class: 'chips' }, ...Object.values(KIND).map((k) => h('div', {
+      class: 'chip' + (k === kind ? ' on' : ''),
+      onclick: () => { if (k !== kind) { state.kind = k; viewCreate(); } },
+    }, `${KW[k].ic} ${k}`))),
+    repair ? h('div', { class: 'hint' }, kind === KIND.SHOP
+      ? 'ขั้นตอน: อนุมัติ → พิมพ์ใบส่งซ่อม → ถ่ายรูปก่อนซ่อมตอนนำของออก → รับของคืน: รูปหลังซ่อม + อะไหล่เก่า + ผลทดสอบ + ราคาจากบิล'
+      : 'ขั้นตอน: อนุมัติ → พิมพ์ใบสั่งงาน → ถ่ายรูปก่อนช่างเริ่ม → ตรวจงาน: รูปหลังซ่อม + อะไหล่เก่า + ผลทดสอบ + ราคาจากบิล') : null));
+
+  const vendor = h('input', { id: 'vendor', list: 'vendorList', placeholder: repair ? 'เลือกหรือพิมพ์ชื่อร้านซ่อม / ช่าง' : 'เลือกหรือพิมพ์ชื่อร้าน', autocomplete: 'off' });
   const vlist = h('datalist', { id: 'vendorList' }, ...m.vendors.map((v) => h('option', { value: v.name })));
   const vhint = h('div', { class: 'hint' });
   const dept = h('select', { id: 'dept' }, h('option', { value: '' }, '— เลือกแผนก —'), ...m.departments.map((d) => h('option', { value: d }, d)));
-  const buyer = h('select', { id: 'buyer' }, h('option', { value: '' }, '— เลือกผู้ไปซื้อ —'), ...m.buyers.map((b) => h('option', { value: b.id }, b.name)));
+  const buyer = h('select', { id: 'buyer' }, h('option', { value: '' }, `— เลือก${w.person} —`), ...m.buyers.map((b) => h('option', { value: b.id }, b.name)));
   const chips = h('div', { class: 'chips' });
   const advWrap = h('div', { class: 'hidden' }, h('label', { for: 'advance' }, 'ยอดเงินที่เบิกล่วงหน้า (บาท) *'),
     h('input', { id: 'advance', type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: '0.00' }),
@@ -369,33 +412,37 @@ async function viewCreate() {
   const renderItems = () => {
     itemsBox.innerHTML = '';
     f.items.forEach((it, i) => {
-      const name = h('input', { class: 'name', list: 'itemList', placeholder: `รายการที่ ${i + 1}`, value: it.name });
+      const name = h('input', { class: 'name', list: 'itemList', placeholder: repair ? `ของที่จะซ่อม เช่น มอเตอร์ 5HP เครื่องไส` : `รายการที่ ${i + 1}`, value: it.name });
       const qty = h('input', { class: 'qty', type: 'number', inputmode: 'decimal', min: '0', step: 'any', placeholder: 'จำนวน', value: it.qty });
       const unit = h('input', { class: 'unit', placeholder: 'หน่วย เช่น ตัว เส้น กล่อง', value: it.unit });
-      [name, qty, unit].forEach((x) => (x.oninput = () => { x.classList.remove('invalid'); it.name = name.value; it.qty = qty.value; it.unit = unit.value; }));
-      itemsBox.append(h('div', { class: 'item' }, name, h('div', { class: 'g3' }, qty, unit),
+      const asset = repair ? h('input', { class: 'asset', placeholder: 'เลขเครื่อง / ทะเบียนทรัพย์สิน (ถ้ามี)', value: it.asset }) : null;
+      [name, qty, unit, asset].filter(Boolean).forEach((x) => (x.oninput = () => {
+        x.classList.remove('invalid'); it.name = name.value; it.qty = qty.value; it.unit = unit.value; if (asset) it.asset = asset.value;
+      }));
+      itemsBox.append(h('div', { class: 'item' }, name, asset, h('div', { class: 'g3' }, qty, unit),
         f.items.length > 1 ? h('button', { type: 'button', class: 'del', 'aria-label': 'ลบรายการ', onclick: () => { f.items.splice(i, 1); renderItems(); } }, '×') : null));
     });
   };
   renderItems();
-  const note = h('textarea', { id: 'note', placeholder: 'เช่น ซ่อมสายพานเครื่องไสไม้' });
+  const note = h('textarea', { id: 'note', placeholder: repair ? 'เช่น มอเตอร์มีเสียงดัง เดินไม่ขึ้น ร้อนจัด' : 'เช่น ซ่อมสายพานเครื่องไสไม้' });
 
   app.append(
-    h('section', { class: 'card' }, h('h2', {}, '🏪 ร้านค้า'), vendor, vlist, vhint,
-      h('div', { class: 'row2' }, h('div', {}, h('label', {}, 'แผนกที่ใช้'), dept), h('div', {}, h('label', {}, 'ผู้ไปซื้อ *'), buyer)),
-      h('div', { class: 'hint' }, 'ไม่มีชื่อผู้ไปซื้อ? ให้เขาเพิ่มเพื่อน LINE ของบริษัทก่อน ชื่อจะขึ้นอัตโนมัติ')),
+    h('section', { class: 'card' }, h('h2', {}, (repair ? '🔧 ' : '🏪 ') + w.vendor), vendor, vlist, vhint,
+      h('div', { class: 'row2' }, h('div', {}, h('label', {}, 'แผนกที่ใช้'), dept), h('div', {}, h('label', {}, w.person + ' *'), buyer)),
+      h('div', { class: 'hint' }, `ไม่มีชื่อ${w.person}? ให้เขาเพิ่มเพื่อน LINE ของบริษัทก่อน ชื่อจะขึ้นอัตโนมัติ`)),
     h('section', { class: 'card' }, h('h2', {}, '💵 วิธีชำระ'), chips, advWrap),
-    h('section', { class: 'card' }, h('h2', {}, '📦 รายการที่จะสั่ง ', h('span', { class: 'req' }, '* ไม่ต้องใส่ราคา')), itemsBox, ilist,
-      h('button', { type: 'button', class: 'btn ghost full', onclick: () => { f.items.push({ name: '', qty: '', unit: '' }); renderItems(); itemsBox.lastChild.querySelector('.name').focus(); } }, '+ เพิ่มรายการ')),
-    h('section', { class: 'card' }, h('label', { for: 'note' }, 'เหตุผลที่ซื้อ / หมายเหตุ'), note),
+    h('section', { class: 'card' }, h('h2', {}, repair ? '🔧 ของที่จะซ่อม ' : '📦 รายการที่จะสั่ง ', h('span', { class: 'req' }, '* ไม่ต้องใส่ราคา')), itemsBox, ilist,
+      h('button', { type: 'button', class: 'btn ghost full', onclick: () => { f.items.push(blank()); renderItems(); itemsBox.lastChild.querySelector('.name').focus(); } }, '+ เพิ่มรายการ')),
+    h('section', { class: 'card' }, h('label', { for: 'note' }, repair ? 'อาการเสีย / หมายเหตุ *' : 'เหตุผลที่ซื้อ / หมายเหตุ'), note),
   );
 
-  setBar('ส่งขออนุมัติสั่งซื้อ', async () => {
+  setBar('ส่งขออนุมัติ' + w.ask, async () => {
     document.querySelectorAll('.invalid').forEach((x) => x.classList.remove('invalid'));
     const errs = []; let first = null;
     const bad = (el, msg) => { el.classList.add('invalid'); errs.push(msg); first = first || el; };
-    if (!vendor.value.trim()) bad(vendor, 'ร้านค้า');
-    if (!buyer.value) bad(buyer, 'ผู้ไปซื้อ');
+    if (!vendor.value.trim()) bad(vendor, w.vendor);
+    if (!buyer.value) bad(buyer, w.person);
+    if (repair && !note.value.trim()) bad(note, 'อาการเสีย');
     if (f.payment === PAY.ADVANCE && !(Number($('advance').value) > 0)) bad($('advance'), 'ยอดเบิก');
     const rows = itemsBox.querySelectorAll('.item');
     const filled = f.items.filter((it) => it.name.trim());
@@ -406,11 +453,11 @@ async function viewCreate() {
     $('submitBtn').disabled = true; overlay(true, 'กำลังส่งขออนุมัติ…');
     try {
       const res = await api('create', { data: {
-        vendor: vendor.value.trim(), department: dept.value, buyerId: buyer.value, payment: f.payment,
+        kind, vendor: vendor.value.trim(), department: dept.value, buyerId: buyer.value, payment: f.payment,
         advance: f.payment === PAY.ADVANCE ? Number($('advance').value) : 0, note: note.value.trim(),
-        items: filled.map((it) => ({ name: it.name.trim(), qty: Number(it.qty), unit: it.unit.trim() })),
+        items: filled.map((it) => ({ name: it.name.trim(), qty: Number(it.qty), unit: it.unit.trim(), asset: (it.asset || '').trim() })),
       } });
-      showDone('📨', 'ส่งขออนุมัติแล้ว', res.id, res.notified ? 'ส่งการ์ดให้ผู้บริหารใน LINE แล้ว\nเมื่ออนุมัติ ใบนี้จะขึ้นในกลุ่ม "รอพิมพ์ใบสั่งของ"' : 'บันทึกแล้ว (ยังไม่ได้แจ้งผู้บริหาร — ตรวจชีต Staff)', 'สร้างใบใหม่', () => go('create'));
+      showDone('📨', 'ส่งขออนุมัติแล้ว', res.id, res.notified ? 'ส่งการ์ดให้ผู้บริหารใน LINE แล้ว\nเมื่ออนุมัติ ใบนี้จะขึ้นในกลุ่ม "รอพิมพ์ใบ"' : 'บันทึกแล้ว (ยังไม่ได้แจ้งผู้บริหาร — ตรวจชีต Staff)', 'สร้างใบใหม่', () => go('create'));
     } catch (err) { toast('ส่งไม่สำเร็จ: ' + err.message, 5000); }
     finally { overlay(false); $('submitBtn').disabled = false; }
   });
@@ -424,31 +471,37 @@ async function viewPO() {
   const app = $('app'); app.innerHTML = '';
   const kv = (pairs) => h('dl', { class: 'kv' }, ...pairs.filter((p) => p[1] !== '' && p[1] != null).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
 
+  const w = kw(r); const repair = isRepair(r);
   app.append(h('section', { class: 'card' },
-    h('h2', {}, r.id, badge(r.status)),
-    kv([['ร้านค้า', r.vendor], ['แผนก', r.dept], ['ผู้ไปซื้อ', r.buyer], ['วิธีชำระ', r.payment],
+    h('h2', {}, r.id, badge(r)),
+    kv([['ประเภท', `${w.ic} ${r.kind || KIND.BUY}`], [w.vendor, r.vendor], ['แผนก', r.dept], [w.person, r.buyer], ['วิธีชำระ', r.payment],
       ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['ผู้จัดทำ', `${r.creator} · ${r.created}`],
-      ['เหตุผล', r.note], ['อนุมัติสั่งซื้อ', r.a1By ? `${r.a1By} · ${r.a1At}` : ''], ['ใช้ได้ถึง', r.validUntil],
-      ['พิมพ์แล้ว', r.a1By ? `${r.prints} ครั้ง` : ''], ['ส่งรูปจากร้าน', r.boughtAt],
+      [repair ? 'อาการเสีย' : 'เหตุผล', r.note], ['อนุมัติ' + w.ask, r.a1By ? `${r.a1By} · ${r.a1At}` : ''], ['ใช้ได้ถึง', r.validUntil],
+      ['พิมพ์แล้ว', r.a1By ? `${r.prints} ครั้ง` : ''], [repair ? (r.kind === KIND.SHOP ? 'นำของออกไปซ่อม' : 'ช่างเริ่มซ่อม') : 'ส่งรูปจากร้าน', r.boughtAt],
       ['เลขที่บิลร้าน', r.billNo], ['ยอดตามบิล', r.receivedAt ? fmt(r.total) + ' บาท' : ''],
-      ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result], ['หมายเหตุตรวจรับ', r.recvNote],
+      ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result],
+      ['ผลทดสอบหลังซ่อม', r.test ? h('b', { class: r.test === 'ใช้งานได้' ? 'ok' : 'bad' }, r.test) : ''], ['หมายเหตุตรวจรับ', r.recvNote],
       ['ปิดรายการ', r.a2By ? `${r.a2By} · ${r.a2At}` : ''], ['การเงิน', r.settle], ['เคลียร์เงิน', r.settleBy ? `${r.settleBy} · ${r.settleAt}` : '']]),
     flagsBox(r.flags)));
 
   const received = r.items.some((it) => it.received != null);
-  app.append(h('section', { class: 'card' }, h('h2', {}, '📦 รายการ'),
+  app.append(h('section', { class: 'card' }, h('h2', {}, repair ? '🔧 รายการซ่อม' : '📦 รายการ'),
     h('table', { class: 'items' },
-      h('tr', {}, h('th', {}, 'รายการ'), h('th', { class: 'r' }, 'สั่ง'), received ? h('th', { class: 'r' }, 'รับ') : null, received ? h('th', { class: 'r' }, 'บาท') : null),
+      h('tr', {}, h('th', {}, 'รายการ'), h('th', { class: 'r' }, repair ? 'ส่ง' : 'สั่ง'), received ? h('th', { class: 'r' }, repair ? 'คืน' : 'รับ') : null, received ? h('th', { class: 'r' }, 'บาท') : null),
       ...r.items.map((it) => h('tr', {},
-        h('td', {}, it.name + (it.extra ? ' (นอกใบสั่ง)' : '')),
+        h('td', {}, it.name + (it.asset ? ` [${it.asset}]` : '') + (it.extra ? (repair ? ' (ค่าซ่อม/อะไหล่)' : ' (นอกใบสั่ง)') : '')),
         h('td', { class: 'r' }, it.extra ? '-' : `${fmtN(it.qty)} ${it.unit}`),
         received ? h('td', { class: 'r ' + (it.result === 'ครบ' ? 'ok' : 'bad') }, it.received == null ? '-' : fmtN(it.received)) : null,
         received ? h('td', { class: 'r' }, it.amount ? fmt(it.amount) : '-') : null)))));
 
-  const photos = [['รูปบิลร้าน', r.billImages], ['รูปของที่ร้าน', r.goodsImages], ['รูปตอนรับของ', r.recvImages]].filter((p) => p[1].length);
-  if (photos.length) app.append(h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลักฐาน'),
+  // ใบซ่อม: เรียงรูปก่อน-หลังซ่อมไว้ติดกัน ให้ผู้บริหารเทียบได้ทันที
+  const photos = (repair
+    ? [['รูปก่อนซ่อม', r.beforeImages || []], ['รูปหลังซ่อม', r.recvImages], ['รูปอะไหล่เก่าที่ถอดออก', r.oldPartImages || []], ['รูปบิล/ใบเสร็จค่าซ่อม', r.billImages]]
+    : [['รูปบิลร้าน', r.billImages], ['รูปของที่ร้าน', r.goodsImages], ['รูปตอนรับของ', r.recvImages]]).filter((p) => p[1].length);
+  if (photos.length || r.noParts) app.append(h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลักฐาน'),
     ...photos.flatMap(([label, list]) => [h('div', { class: 'mini' }, label), linkThumbs(list)]),
-    r.gps ? h('div', { class: 'hint' }, h('a', { href: r.gps.split(' ').pop(), target: '_blank' }, '📍 ดูตำแหน่งที่ร้านบนแผนที่')) : null));
+    r.noParts ? h('div', { class: 'hint' }, '🔩 เสมียนระบุว่า: ไม่มีการเปลี่ยนอะไหล่') : null,
+    r.gps ? h('div', { class: 'hint' }, h('a', { href: r.gps.split(' ').pop(), target: '_blank' }, repair ? '📍 ดูตำแหน่งตอนถ่ายรูปก่อนซ่อม' : '📍 ดูตำแหน่งที่ร้านบนแผนที่')) : null));
 
   // ปุ่มตามสิทธิ์
   const acts = h('div', { class: 'actions' });
@@ -458,13 +511,14 @@ async function viewPO() {
     catch (err) { toast(err.message, 5000); } finally { overlay(false); }
   };
   if (can.approve1) acts.append(h('div', { class: 'actions two' },
-    h('button', { class: 'btn primary', onclick: () => run('approve1', { approve: true }) }, '✅ อนุมัติสั่งซื้อ'),
+    h('button', { class: 'btn primary', onclick: () => run('approve1', { approve: true }) }, '✅ อนุมัติ' + w.ask),
     h('button', { class: 'btn red', onclick: () => { const n = prompt('เหตุผลที่ไม่อนุมัติ'); if (n !== null) run('approve1', { approve: false, note: n }); } }, 'ไม่อนุมัติ')));
   if (can.print) acts.append(h('button', { class: 'btn blue full', onclick: () => openExternal(res.printUrl) },
-    r.prints ? `🖨️ พิมพ์ซ้ำ (จะขึ้น "สำเนา")` : '🖨️ พิมพ์ใบสั่งของ'),
+    r.prints ? `🖨️ พิมพ์ซ้ำ (จะขึ้น "สำเนา")` : '🖨️ พิมพ์' + w.doc),
     h('div', { class: 'hint' }, 'แนะนำให้เปิดจากคอมพิวเตอร์ที่ต่อเครื่องพิมพ์ (เปิด LINE บนคอมแล้วกดปุ่มนี้)'));
-  if (can.buy) acts.append(h('button', { class: 'btn primary full', onclick: () => go('buy', r.id) }, '📸 ส่งรูปบิลและของ'));
-  if (can.receive) acts.append(h('button', { class: 'btn blue full', onclick: () => go('receive', r.id) }, '📦 ตรวจรับของ'));
+  if (can.buy) acts.append(h('button', { class: 'btn primary full', onclick: () => go('buy', r.id) }, w.start));
+  if (can.receive) acts.append(h('button', { class: 'btn blue full', onclick: () => go('receive', r.id) }, w.recv),
+    repair ? h('div', { class: 'hint' }, 'ทำในมือถือ — ต้องถ่ายรูปหลังซ่อมตอนรับของจริง') : null);
   if (can.approve2) acts.append(
     h('div', { class: 'info' }, '💵 ' + res.settlePreview.text),
     h('div', { class: 'actions two' },
@@ -472,7 +526,7 @@ async function viewPO() {
       h('button', { class: 'btn line', onclick: () => { const n = prompt('ส่งกลับให้ตรวจใหม่เพราะ'); if (n !== null) run('approve2', { approve: false, note: n }); } }, '↩️ ส่งกลับตรวจใหม่')));
   if (can.settle) acts.append(h('div', { class: 'info' }, '💵 ' + r.settle),
     h('button', { class: 'btn primary full', onclick: () => { if (confirm(`ยืนยันว่าเคลียร์เงินแล้ว?\n${r.settle}`)) run('settle', {}); } }, '✅ เคลียร์เงินแล้ว'));
-  if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบสั่งซื้อนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิกใบสั่งซื้อ'));
+  if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิก' + w.doc));
   Object.values(can.why || {}).forEach((w) => acts.append(h('div', { class: 'warn' }, '🔒 ' + w)));
   if (res.verifyUrl) acts.append(h('div', { class: 'hint' }, h('a', { href: res.verifyUrl, target: '_blank' }, 'หน้าตรวจสอบ (ที่ร้านเห็นเมื่อสแกน QR)')));
   if (acts.children.length) app.append(h('section', { class: 'card' }, acts));
@@ -501,15 +555,15 @@ async function viewBuy() {
     const app = $('app'); app.innerHTML = '';
     app.append(langSwitch(render));
     if (!res.can.buy) {
-      app.append(h('div', { class: 'card done' }, h('div', { class: 'ic' }, '✅'), h('h1', {}, r.status), h('div', { class: 'id' }, r.id)));
+      app.append(h('div', { class: 'card done' }, h('div', { class: 'ic' }, '✅'), h('h1', {}, stText(r)), h('div', { class: 'id' }, r.id)));
       return setBar('', null);
     }
     const info = h('section', { class: 'card' },
       h('div', { style: 'font-size:22px;font-weight:700' }, '🏪 ' + r.vendor),
       h('div', { class: 'hint', style: 'font-size:15px' }, r.id),
       r.payment === PAY.ADVANCE ? h('div', { style: 'margin-top:8px' }, '💵 ' + t('cash') + ' ', h('span', { class: 'cash' }, fmt(r.advance) + ' ฿')) : null,
-      h('div', { class: 'mini', style: 'margin-top:10px' }, '📦 ' + t('items')),
-      ...r.items.map((it) => h('div', { style: 'font-size:16px' }, `• ${it.name}  ×${fmtN(it.qty)} ${it.unit}`)));
+      h('div', { class: 'mini', style: 'margin-top:10px' }, isRepair(r) ? '🔧' : '📦 ' + t('items')),
+      ...r.items.map((it) => h('div', { style: 'font-size:16px' }, `• ${it.name}${it.asset ? ' [' + it.asset + ']' : ''}  ×${fmtN(it.qty)} ${it.unit}`)));
     const step = (ic, title, sub, key) => {
       const sec = h('section', { class: 'card' },
         h('div', { class: 'step' + (key && state.photos[key].length ? ' done' : '') }, h('div', { class: 'ic' }, ic),
@@ -518,6 +572,17 @@ async function viewBuy() {
         h('button', { class: 'btn camera bigcam', 'data-cam': key }, '📷 ' + t('cam')));
       return sec;
     };
+    if (isRepair(r)) {
+      // ใบซ่อม: ถ่ายรูปก่อนซ่อม (ที่โรงงาน) แล้วนำใบไปให้ร้าน/ช่าง
+      app.append(info,
+        step('📷', '1. ' + t('r1'), t('r1b'), 'before'),
+        step('📄', '2. ' + t('r2'), t('r2b')),
+        h('div', { id: 'gps', class: 'gps' }, '📍 ' + t('gpsWait')));
+      renderThumbs('before');
+      bindCameraButtons({ before: 'ก่อนซ่อม' });
+      showGps();
+      return setBar('✅ ' + t('send'), submitRepairStart);
+    }
     app.append(info,
       step('📄', '1. ' + t('s1'), t('s1b')),
       step('🧾', '2. ' + t('s2'), t('s2b'), 'bill'),
@@ -544,28 +609,47 @@ async function submitBuy() {
   finally { overlay(false); $('submitBtn').disabled = false; }
 }
 
+async function submitRepairStart() {
+  if (!state.photos.before.length) { document.querySelector('[data-cam=before]').scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('📷 ' + t('needBefore'), 4000); }
+  if (!state.location) await requestLocation();
+  $('submitBtn').disabled = true; overlay(true, t('sending'));
+  try {
+    await api('bought', { data: { id: state.record.id, location: state.location, beforeImages: state.photos.before } });
+    showDone('✅', t('done'), state.record.id, (state.record.kind === KIND.SHOP ? '🔧 ' + t('doneRSub') : '👷 ' + t('done')));
+  } catch (err) { toast(t('err') + ' — ' + err.message, 6000); }
+  finally { overlay(false); $('submitBtn').disabled = false; }
+}
+
 /* ================== เสมียน: ตรวจรับ + ใส่ราคาจากบิล ================== */
 async function viewReceive() {
   const res = await api('get', { id: state.id });
   const r = state.record = res.record;
-  header('ตรวจรับ ' + r.id, r.vendor, 'blue');
-  if (!res.can.receive) throw new Error(res.can.why.receive || `ใบนี้สถานะ "${r.status}" ตรวจรับไม่ได้`);
+  const w = kw(r); const repair = isRepair(r);
+  header((repair ? 'ตรวจงานซ่อม ' : 'ตรวจรับ ') + r.id, r.vendor, 'blue');
+  if (!res.can.receive) throw new Error(res.can.why.receive || `ใบนี้สถานะ "${stText(r)}" ตรวจรับไม่ได้`);
   const app = $('app'); app.innerHTML = '';
   const order = r.items.filter((it) => !it.extra);
   const lines = order.map((it) => ({ received: '', price: '' }));
   const extras = [];
   let quality = 'ok';
+  let test = '';
 
-  app.append(h('section', { class: 'card' }, h('h2', {}, r.id, badge(r.status)),
-    h('dl', { class: 'kv' }, ...[['ร้านค้า', r.vendor], ['ผู้ไปซื้อ', r.buyer], ['วิธีชำระ', r.payment],
-      ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['ส่งรูปจากร้าน', r.boughtAt || 'ยังไม่ได้ส่ง']]
+  app.append(h('section', { class: 'card' }, h('h2', {}, r.id, badge(r)),
+    h('dl', { class: 'kv' }, ...[['ประเภท', repair ? `${w.ic} ${r.kind}` : ''], [w.vendor, r.vendor], [w.person, r.buyer], ['วิธีชำระ', r.payment],
+      ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['อาการเสีย', repair ? r.note : ''],
+      [repair ? (r.kind === KIND.SHOP ? 'นำของออกไปซ่อม' : 'ช่างเริ่มซ่อม') : 'ส่งรูปจากร้าน', r.boughtAt || 'ยังไม่ได้ส่ง']]
       .filter((p) => p[1]).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
     flagsBox(r.flags)));
 
-  const billSec = h('section', { class: 'card' }, h('h2', {}, '🧾 บิลร้าน'));
+  // ใบซ่อม: ดูรูปก่อนซ่อมไว้เทียบกับของที่ได้คืน (เลขเครื่องต้องตรงกัน)
+  if (repair) app.append(h('section', { class: 'card' }, h('h2', {}, '📷 รูปก่อนซ่อม'),
+    (r.beforeImages || []).length ? linkThumbs(r.beforeImages) : h('div', { class: 'warn' }, 'ไม่มีรูปก่อนซ่อม — ระบบจะติดข้อสังเกต'),
+    h('div', { class: 'hint' }, 'เทียบเลขเครื่อง/ป้ายทรัพย์สินกับของที่ได้คืน ต้องเป็นเครื่องเดียวกัน')));
+
+  const billSec = h('section', { class: 'card' }, h('h2', {}, repair ? '🧾 บิล / ใบเสร็จค่าซ่อม' : '🧾 บิลร้าน'));
   if (r.billImages.length) billSec.append(h('div', { class: 'mini' }, 'รูปบิลจากผู้ไปซื้อ'), linkThumbs(r.billImages));
-  else billSec.append(h('div', { class: 'warn' }, 'ผู้ไปซื้อไม่ได้ส่งรูปบิล — ถ่ายรูปบิลร้านที่นี่ (ระบบจะติดข้อสังเกต)'),
-    h('div', { class: 'thumbs', id: 'th_bill', style: 'margin-top:8px' }), h('button', { class: 'btn camera', 'data-cam': 'bill' }, '📷 ถ่ายรูปบิลร้าน'));
+  else billSec.append(h('div', { class: 'warn' }, repair ? 'ถ่ายรูปบิล/ใบเสร็จค่าซ่อม (ช่างไม่มีบิล ให้เขียนราคาในใบสั่งงานแล้วถ่ายรูปใบนั้น)' : 'ผู้ไปซื้อไม่ได้ส่งรูปบิล — ถ่ายรูปบิลร้านที่นี่ (ระบบจะติดข้อสังเกต)'),
+    h('div', { class: 'thumbs', id: 'th_bill', style: 'margin-top:8px' }), h('button', { class: 'btn camera', 'data-cam': 'bill' }, repair ? '📷 ถ่ายรูปบิลค่าซ่อม' : '📷 ถ่ายรูปบิลร้าน'));
   if (r.goodsImages.length) billSec.append(h('div', { class: 'mini' }, 'รูปของที่ร้าน'), linkThumbs(r.goodsImages));
   const billNo = h('input', { id: 'billNo', placeholder: 'เช่น 28 หรือ เล่ม 3 เลขที่ 28', autocomplete: 'off' });
   const billTotal = h('input', { id: 'billTotal', type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: '0.00' });
@@ -584,10 +668,10 @@ async function viewReceive() {
   };
   billTotal.oninput = () => { billTotal.classList.remove('invalid'); update(); };
 
-  const itemSec = h('section', { class: 'card' }, h('h2', {}, '📦 นับของ + ราคาจากบิล ', h('span', { class: 'req' }, '* ทุกรายการ')));
+  const itemSec = h('section', { class: 'card' }, h('h2', {}, repair ? '🔧 ของที่ได้คืน + ค่าซ่อมจากบิล ' : '📦 นับของ + ราคาจากบิล ', h('span', { class: 'req' }, '* ทุกรายการ')));
   order.forEach((it, i) => {
-    const rec = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', placeholder: 'รับจริง' });
-    const price = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: 'ราคา/หน่วย' });
+    const rec = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', placeholder: repair ? 'ได้คืน' : 'รับจริง' });
+    const price = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', placeholder: repair ? 'ค่าซ่อม/หน่วย' : 'ราคา/หน่วย' });
     const out = h('div', { class: 'res' });
     const upd = () => {
       rec.classList.remove('invalid'); price.classList.remove('invalid');
@@ -601,42 +685,65 @@ async function viewReceive() {
       out.innerHTML = ''; out.append(...parts); update();
     };
     rec.oninput = upd; price.oninput = upd; rec.dataset.i = i;
-    itemSec.append(h('div', { class: 'item rline' }, h('div', { class: 'head' }, h('div', {}, it.name), h('span', {}, `สั่ง ${fmtN(it.qty)} ${it.unit}`)),
+    itemSec.append(h('div', { class: 'item rline' }, h('div', { class: 'head' }, h('div', {}, it.name + (it.asset ? ` [${it.asset}]` : '')), h('span', {}, `${repair ? 'ส่งซ่อม' : 'สั่ง'} ${fmtN(it.qty)} ${it.unit}`)),
       h('div', { class: 'g3' }, rec, price), out));
   });
   itemSec.append(h('button', { class: 'btn ghost full', onclick: () => itemSec.querySelectorAll('.rline').forEach((el, i) => {
     const inp = el.querySelector('input'); inp.value = order[i].qty; inp.oninput();
-  }) }, '✓ ได้รับครบทุกรายการ'));
+  }) }, repair ? '✓ ได้ของคืนครบทุกรายการ' : '✓ ได้รับครบทุกรายการ'));
   const extraBox = h('div');
   const renderExtras = () => {
     extraBox.innerHTML = '';
     extras.forEach((x, i) => {
-      const name = h('input', { class: 'name', placeholder: 'ชื่อของที่ไม่อยู่ในใบสั่ง', value: x.name });
+      const name = h('input', { class: 'name', placeholder: repair ? 'เช่น ลูกปืน 6205 / ค่าแรงพันมอเตอร์' : 'ชื่อของที่ไม่อยู่ในใบสั่ง', value: x.name });
       const qty = h('input', { type: 'number', inputmode: 'decimal', placeholder: 'จำนวน', value: x.qty });
       const unit = h('input', { placeholder: 'หน่วย', value: x.unit });
       const price = h('input', { type: 'number', inputmode: 'decimal', placeholder: 'ราคา/หน่วย', value: x.price });
       [name, qty, unit, price].forEach((el) => (el.oninput = () => { x.name = name.value; x.qty = qty.value; x.unit = unit.value; x.price = price.value; update(); }));
-      extraBox.append(h('div', { class: 'item', style: 'border-color:#F0B400' }, name, h('div', { class: 'g3' }, qty, unit, price),
+      extraBox.append(h('div', { class: 'item', style: repair ? '' : 'border-color:#F0B400' }, name, h('div', { class: 'g3' }, qty, unit, price),
         h('button', { class: 'del', 'aria-label': 'ลบ', onclick: () => { extras.splice(i, 1); renderExtras(); update(); } }, '×')));
     });
   };
-  itemSec.append(extraBox, h('button', { class: 'btn line full', style: 'margin-top:8px', onclick: () => { extras.push({ name: '', qty: '', unit: '', price: '' }); renderExtras(); } }, '+ มีของนอกใบสั่ง (ระบบจะแจ้งผู้บริหาร)'),
+  itemSec.append(extraBox, h('button', { class: 'btn line full', style: 'margin-top:8px', onclick: () => { extras.push({ name: '', qty: '', unit: '', price: '' }); renderExtras(); } },
+    repair ? '+ แยกค่าอะไหล่ / ค่าแรงตามบิล (ไม่บังคับ)' : '+ มีของนอกใบสั่ง (ระบบจะแจ้งผู้บริหาร)'),
     sumBox, settleBox);
   app.append(itemSec);
 
-  const qSeg = h('div', { class: 'seg' }, h('div', { class: 'chip on', 'data-v': 'ok' }, 'ตรงตามที่สั่ง'), h('div', { class: 'chip', 'data-v': 'bad' }, 'ไม่ตรง / ชำรุด'));
-  qSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
-    qSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
-    c.classList.add('on'); if (c.dataset.v === 'bad') c.classList.add('bad'); quality = c.dataset.v;
-  }));
-  const note = h('textarea', { id: 'rNote', placeholder: 'เช่น ขาด 2 ตัว ร้านจะส่งตามพรุ่งนี้' });
+  const note = h('textarea', { id: 'rNote', placeholder: repair ? 'เช่น เปลี่ยนลูกปืน 2 ตัว ทดสอบเดินเครื่อง 10 นาที ปกติ' : 'เช่น ขาด 2 ตัว ร้านจะส่งตามพรุ่งนี้' });
   const confirmBox = h('input', { type: 'checkbox', id: 'confirm' });
-  app.append(h('section', { class: 'card' }, h('h2', {}, 'สภาพ / สเปกของ'), qSeg),
-    h('section', { class: 'card' }, h('h2', {}, '📸 รูปของตอนรับ ', h('span', { class: 'req' }, '*')),
-      h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปของที่ได้รับ'),
-      h('label', { for: 'rNote' }, 'หมายเหตุตรวจรับ'), note,
-      h('label', { class: 'check' }, confirmBox, h('span', {}, 'ข้าพเจ้าตรวจนับของจริงแล้ว เก็บใบสั่งของตัวจริงและบิลร้านไว้แล้ว'))));
-  bindCameraButtons({ bill: 'บิลร้าน (เสมียน)', recv: 'ของตอนรับ' });
+  const noParts = h('input', { type: 'checkbox', id: 'noParts' });
+  if (repair) {
+    // ผลทดสอบหลังซ่อม (บังคับเลือก)
+    const tSeg = h('div', { class: 'seg', style: 'grid-template-columns:1fr 1fr 1fr' }, ...TESTS.map((x) => h('div', { class: 'chip', 'data-v': x }, x)));
+    tSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+      tSeg.classList.remove('invalid');
+      tSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
+      c.classList.add('on'); if (c.dataset.v !== 'ใช้งานได้') c.classList.add('bad'); test = c.dataset.v;
+    }));
+    app.append(h('section', { class: 'card' }, h('h2', {}, '🔌 ผลทดสอบหลังซ่อม ', h('span', { class: 'req' }, '*')), tSeg,
+      h('div', { class: 'hint' }, 'ลองเปิดใช้งานจริงก่อนเลือก')),
+      h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลังซ่อม ', h('span', { class: 'req' }, '*')),
+        h('div', { class: 'hint' }, 'ถ่ายให้เห็นเลขเครื่องเดียวกับรูปก่อนซ่อม'),
+        h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปหลังซ่อม')),
+      h('section', { class: 'card' }, h('h2', {}, '🔩 อะไหล่เก่าที่ถอดออก'),
+        h('div', { class: 'thumbs', id: 'th_oldpart' }), h('button', { class: 'btn camera', 'data-cam': 'oldpart' }, '📷 ถ่ายรูปอะไหล่เก่า'),
+        h('label', { class: 'check' }, noParts, h('span', {}, 'ไม่มีการเปลี่ยนอะไหล่ (ค่าแรงอย่างเดียว)'))),
+      h('section', { class: 'card' }, h('label', { for: 'rNote' }, 'หมายเหตุตรวจงาน'), note,
+        h('label', { class: 'check' }, confirmBox, h('span', {}, 'ข้าพเจ้าตรวจของที่ได้คืน/งานซ่อม และทดสอบแล้ว เก็บใบส่งซ่อมและบิลไว้แล้ว'))));
+    bindCameraButtons({ bill: 'บิลค่าซ่อม', recv: 'หลังซ่อม', oldpart: 'อะไหล่เก่า' });
+  } else {
+    const qSeg = h('div', { class: 'seg' }, h('div', { class: 'chip on', 'data-v': 'ok' }, 'ตรงตามที่สั่ง'), h('div', { class: 'chip', 'data-v': 'bad' }, 'ไม่ตรง / ชำรุด'));
+    qSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+      qSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
+      c.classList.add('on'); if (c.dataset.v === 'bad') c.classList.add('bad'); quality = c.dataset.v;
+    }));
+    app.append(h('section', { class: 'card' }, h('h2', {}, 'สภาพ / สเปกของ'), qSeg),
+      h('section', { class: 'card' }, h('h2', {}, '📸 รูปของตอนรับ ', h('span', { class: 'req' }, '*')),
+        h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปของที่ได้รับ'),
+        h('label', { for: 'rNote' }, 'หมายเหตุตรวจรับ'), note,
+        h('label', { class: 'check' }, confirmBox, h('span', {}, 'ข้าพเจ้าตรวจนับของจริงแล้ว เก็บใบสั่งของตัวจริงและบิลร้านไว้แล้ว'))));
+    bindCameraButtons({ bill: 'บิลร้าน (เสมียน)', recv: 'ของตอนรับ' });
+  }
   requestLocation(); update();
 
   setBar('ยืนยันผลตรวจรับ', async () => {
@@ -650,10 +757,14 @@ async function viewReceive() {
       if (lines[i].received === '' || Number(lines[i].received) < 0) bad(a, 'จำนวนที่รับ');
       if (Number(lines[i].received) > 0 && lines[i].price === '') bad(b, 'ราคา');
     });
-    if (!state.photos.recv.length) { errs.push('รูปตอนรับ'); first = first || document.querySelector('[data-cam=recv]'); }
+    if (repair && !test) { errs.push('ผลทดสอบหลังซ่อม'); first = first || document.querySelector('.seg'); }
+    if (!state.photos.recv.length) { errs.push(repair ? 'รูปหลังซ่อม' : 'รูปตอนรับ'); first = first || document.querySelector('[data-cam=recv]'); }
+    if (repair && !state.photos.oldpart.length && !noParts.checked) { errs.push('รูปอะไหล่เก่า (หรือติ๊กว่าไม่มีการเปลี่ยนอะไหล่)'); first = first || document.querySelector('[data-cam=oldpart]'); }
     if (!confirmBox.checked) { errs.push('ติ๊กยืนยัน'); first = first || confirmBox; }
-    const mismatch = order.some((it, i) => Number(lines[i].received) !== it.qty) || extras.some((x) => x.name.trim());
-    if (!first && (mismatch || quality === 'bad') && !note.value.trim()) bad(note, 'หมายเหตุ (ของไม่ตรงใบสั่ง)');
+    const mismatch = order.some((it, i) => Number(lines[i].received) !== it.qty) || (!repair && extras.some((x) => x.name.trim()));
+    if (!first && (mismatch || quality === 'bad' || (repair && test !== 'ใช้งานได้')) && !note.value.trim()) {
+      bad(note, repair ? 'หมายเหตุ (ได้คืนไม่ครบ / ซ่อมยังไม่หาย)' : 'หมายเหตุ (ของไม่ตรงใบสั่ง)');
+    }
     if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('กรุณา: ' + [...new Set(errs)].join(', '), 4000); }
     $('submitBtn').disabled = true; overlay(true, 'กำลังบันทึกผลตรวจรับ…');
     try {
@@ -662,8 +773,11 @@ async function viewReceive() {
         lines: lines.map((l) => ({ received: Number(l.received), price: Number(l.price) || 0 })),
         extras: extras.filter((e) => e.name.trim()).map((e) => ({ name: e.name.trim(), qty: Number(e.qty), unit: e.unit.trim(), price: Number(e.price) || 0 })),
         location: state.location, receiveImages: state.photos.recv, billImages: state.photos.bill,
+        test, oldPartImages: state.photos.oldpart, noParts: noParts.checked,
       } });
-      showDone(/ครบ/.test(x.result) && !/สเปก/.test(x.result) ? '✅' : '⚠️', 'บันทึกผลตรวจรับแล้ว', r.id,
+      const good = repair ? x.result === 'ซ่อมแล้ว: ใช้งานได้' || x.result === 'ซ่อมแล้ว: ใช้งานได้ / ไม่มีการเปลี่ยนอะไหล่'
+        : /ครบ/.test(x.result) && !/สเปก/.test(x.result);
+      showDone(good ? '✅' : '⚠️', repair ? 'บันทึกผลตรวจงานซ่อมแล้ว' : 'บันทึกผลตรวจรับแล้ว', r.id,
         `${x.result}\n💵 ${x.settle.text}\nรอผู้บริหารปิดรายการ (เมนู "รอปิดรายการ")`);
     } catch (err) { toast('บันทึกไม่สำเร็จ: ' + err.message, 5000); }
     finally { overlay(false); $('submitBtn').disabled = false; }
@@ -769,7 +883,8 @@ const MOCK_PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="htt
 const MOCK_IMG = [{ url: '#', thumb: MOCK_PH }];
 const mockDB = (() => {
   const base = { dept: 'ซ่อมบำรุง', creator: 'นิด', created: '16/11/2569 08:10', note: 'ซ่อมสายพานเครื่องไส', prints: 0, flags: '', billImages: [], goodsImages: [], recvImages: [],
-    a1By: '', a1At: '', validUntil: '', boughtAt: '', gps: '', billNo: '', total: 0, receiver: '', receivedAt: '', result: '', recvNote: '', a2By: '', a2At: '', settle: '', settleBy: '', settleAt: '', advance: 0 };
+    a1By: '', a1At: '', validUntil: '', boughtAt: '', gps: '', billNo: '', total: 0, receiver: '', receivedAt: '', result: '', recvNote: '', a2By: '', a2At: '', settle: '', settleBy: '', settleAt: '', advance: 0,
+    kind: KIND.BUY, beforeImages: [], oldPartImages: [], test: '', noParts: false, days: null };
   const items = [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น' }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง' }];
   const mk = (o) => ({ ...base, items: items.map((x) => ({ ...x, received: null, price: null, amount: 0, result: '', extra: false })), ...o });
   const db = [
@@ -780,6 +895,17 @@ const mockDB = (() => {
       billNo: '28', total: 1480, receiver: 'นิด', receivedAt: '14/11/2569 15:00', result: 'ไม่ตรงใบสั่ง', recvNote: 'ลวดเชื่อมขาด 1 กล่อง ร้านส่งตามพรุ่งนี้', flags: 'ของไม่ตรงใบสั่ง 1 รายการ', settle: 'Aung Ko คืนเงินทอน 520.00 บาท (เบิก 2,000.00 − จ่ายจริง 1,480.00)',
       items: [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น', received: 1, price: 160, amount: 160, result: 'ครบ', extra: false }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง', received: 1, price: 1320, amount: 1320, result: 'ขาด 1', extra: false }] }),
     mk({ id: 'PO6911-0001', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.WAIT_SETTLE, total: 160, settle: 'คืนเงินให้ Sokha 160.00 บาท (สำรองจ่าย)', a2By: 'คุณสมชาย', a2At: '13/11/2569 13:05' }),
+    // ใบซ่อม
+    mk({ id: 'PO6911-0008', kind: KIND.SHOP, vendor: 'ร้านช่างหมูพันมอเตอร์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.CREDIT, status: ST.TO_BUY, a1By: 'คุณสมชาย', a1At: '17/11/2569 08:30', validUntil: '24/11/2569', prints: 1,
+      note: 'มอเตอร์มีเสียงดัง ร้อนจัด', items: [{ name: 'มอเตอร์ 5HP เครื่องไส #2', qty: 1, unit: 'เครื่อง', asset: 'M-012', received: null, price: null, amount: 0, result: '', extra: false }] }),
+    mk({ id: 'PO6911-0007', kind: KIND.SHOP, vendor: 'ร้านช่างหมูพันมอเตอร์', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.CREDIT, status: ST.BOUGHT, a1By: 'คุณสมชาย', a1At: '01/11/2569 09:00', validUntil: '08/11/2569', prints: 1, boughtAt: '01/11/2569 10:15', days: 16,
+      note: 'ปั๊มน้ำไม่ดูด', beforeImages: MOCK_IMG, items: [{ name: 'ปั๊มน้ำ 2 นิ้ว บ่อพักน้ำ', qty: 1, unit: 'เครื่อง', asset: 'P-003', received: null, price: null, amount: 0, result: '', extra: false }] }),
+    mk({ id: 'PO6911-0006', kind: KIND.SITE, vendor: 'ช่างเอก แอร์', buyer: 'นิด', buyerId: 'Uclerk2', payment: PAY.SELF, status: ST.WAIT_A2, a1By: 'คุณสมชาย', a1At: '15/11/2569 09:00', validUntil: '22/11/2569', prints: 1, boughtAt: '15/11/2569 13:00',
+      note: 'แอร์ห้องบัญชีไม่เย็น', beforeImages: MOCK_IMG, recvImages: MOCK_IMG, oldPartImages: MOCK_IMG, billImages: MOCK_IMG, test: 'ใช้งานได้',
+      billNo: 'A-551', total: 1850, receiver: 'ต้อม', receivedAt: '15/11/2569 16:40', result: 'ซ่อมแล้ว: ใช้งานได้', settle: 'คืนเงินให้ นิด 1,850.00 บาท (สำรองจ่าย)',
+      items: [{ name: 'แอร์ห้องบัญชี', qty: 1, unit: 'เครื่อง', asset: 'AC-07', received: 1, price: 600, amount: 600, result: 'ครบ', extra: false },
+        { name: 'คาปาซิเตอร์ 35uF', qty: 0, unit: 'ตัว', received: 1, price: 450, amount: 450, result: 'ค่าซ่อม/อะไหล่', extra: true },
+        { name: 'เติมน้ำยา R32', qty: 0, unit: 'งาน', received: 1, price: 800, amount: 800, result: 'ค่าซ่อม/อะไหล่', extra: true }] }),
   ];
   return db;
 })();
@@ -810,20 +936,20 @@ function mockLog(r) {
 function mockPerms(r) {
   const w = mockWho(); const s = r.status;
   return { view: true, approve1: w.isExec && s === ST.WAIT_A1, print: (w.isClerk || w.isExec) && (s === ST.TO_BUY || s === ST.BOUGHT),
-    buy: r.buyerId === w.uid && s === ST.TO_BUY, receive: w.isClerk && (s === ST.TO_BUY || s === ST.BOUGHT),
+    buy: (r.buyerId === w.uid || (isRepair(r) && w.isClerk)) && s === ST.TO_BUY, receive: w.isClerk && (s === ST.TO_BUY || s === ST.BOUGHT),
     approve2: w.isExec && s === ST.WAIT_A2, settle: w.isClerk && s === ST.WAIT_SETTLE, cancel: (w.isClerk || w.isExec) && (s === ST.WAIT_A1 || s === ST.TO_BUY), why: {} };
 }
 async function mockApi(action, x) {
   await new Promise((r) => setTimeout(r, 300));
   const w = mockWho();
   const find = (id) => { const r = mockDB.find((p) => p.id === id); if (!r) throw new Error('ไม่พบ ' + id); return r; };
-  const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags });
+  const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags, kind: p.kind, days: p.days });
   const open = [ST.WAIT_A1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_A2, ST.WAIT_SETTLE];
   console.log('[mock]', action, JSON.parse(JSON.stringify(x, (k, v) => (typeof v === 'string' && v.length > 200 ? v.slice(0, 50) + '…' : v))));
   switch (action) {
     case 'me': return { ok: true, user: { name: state.profile.displayName, role: w.role, lang: '', isClerk: w.isClerk, isExec: w.isExec },
       departments: ['ฝ่ายผลิต', 'ซ่อมบำรุง', 'คลังสินค้า', 'สำนักงาน'], vendors: [{ name: 'ร้านสง่ายานยนต์', payment: PAY.CREDIT }, { name: 'ร้านตระกูลพานิช', payment: PAY.ADVANCE }],
-      payments: Object.values(PAY), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
+      payments: Object.values(PAY), kinds: Object.values(KIND), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
     case 'setLang': return { ok: true };
     case 'list': return { ok: true, jobs: mockDB.filter((p) => p.buyerId === w.uid && p.status === ST.TO_BUY).map(brief),
       myRecent: mockDB.filter((p) => p.buyerId === w.uid && p.status !== ST.TO_BUY).map(brief),
@@ -832,9 +958,14 @@ async function mockApi(action, x) {
       log: (w.isClerk || w.isExec) ? mockLog(r) : [] }; }
     case 'create': return { ok: true, id: 'PO6911-0006', notified: true };
     case 'approve1': { const r = find(x.id); r.status = x.approve ? ST.TO_BUY : ST.REJECTED; r.a1By = 'คุณสมชาย'; r.a1At = 'เมื่อสักครู่'; r.validUntil = '23/11/2569'; return { ok: true, message: x.approve ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ' }; }
-    case 'bought': { const r = find(x.data.id); r.status = ST.BOUGHT; r.billImages = MOCK_IMG; r.goodsImages = MOCK_IMG; return { ok: true, id: r.id }; }
+    case 'bought': { const r = find(x.data.id); r.status = ST.BOUGHT; r.boughtAt = 'เมื่อสักครู่'; r.days = 0;
+      if (isRepair(r)) r.beforeImages = MOCK_IMG; else { r.billImages = MOCK_IMG; r.goodsImages = MOCK_IMG; } return { ok: true, id: r.id }; }
     case 'receive': { const r = find(x.data.id); r.status = ST.WAIT_A2; r.total = x.data.billTotal; r.settle = settleText(r, r.total);
-      return { ok: true, id: r.id, result: x.data.lines.every((l, i) => l.received === r.items[i].qty) ? 'ครบตามใบสั่ง' : 'ไม่ตรงใบสั่ง', settle: { text: r.settle } }; }
+      const all = x.data.lines.every((l, i) => l.received === r.items[i].qty);
+      if (isRepair(r)) { r.test = x.data.test; r.result = `ซ่อมแล้ว: ${x.data.test}` + (all ? '' : ' / ได้ของคืนไม่ครบ') + (x.data.noParts && !x.data.oldPartImages.length ? ' / ไม่มีการเปลี่ยนอะไหล่' : '');
+        r.recvImages = MOCK_IMG; if (x.data.oldPartImages.length) r.oldPartImages = MOCK_IMG; else r.noParts = !!x.data.noParts; }
+      else r.result = all ? 'ครบตามใบสั่ง' : 'ไม่ตรงใบสั่ง';
+      return { ok: true, id: r.id, result: r.result, settle: { text: r.settle } }; }
     case 'approve2': { const r = find(x.id); r.status = x.approve ? (r.payment === PAY.CREDIT ? ST.CLOSED : ST.WAIT_SETTLE) : ST.BOUGHT; return { ok: true, message: 'บันทึกแล้ว' }; }
     case 'settle': { find(x.id).status = ST.CLOSED; return { ok: true, message: 'เคลียร์เงินแล้ว' }; }
     case 'cancel': { find(x.id).status = ST.CANCELLED; return { ok: true, message: 'ยกเลิกแล้ว' }; }
