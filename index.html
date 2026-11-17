@@ -528,6 +528,7 @@ async function viewPO() {
     h('button', { class: 'btn primary full', onclick: () => { if (confirm(`ยืนยันว่าเคลียร์เงินแล้ว?\n${r.settle}`)) run('settle', {}); } }, '✅ เคลียร์เงินแล้ว'));
   if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิก' + w.doc));
   Object.values(can.why || {}).forEach((w) => acts.append(h('div', { class: 'warn' }, '🔒 ' + w)));
+  if (res.evidenceUrl) acts.append(h('button', { class: 'btn ghost full', onclick: () => openExternal(res.evidenceUrl) }, '📂 หน้าหลักฐานทั้งหมด (ลิงก์เดียวกับในไฟล์บัญชี)'));
   if (res.verifyUrl) acts.append(h('div', { class: 'hint' }, h('a', { href: res.verifyUrl, target: '_blank' }, 'หน้าตรวจสอบ (ที่ร้านเห็นเมื่อสแกน QR)')));
   if (acts.children.length) app.append(h('section', { class: 'card' }, acts));
 
