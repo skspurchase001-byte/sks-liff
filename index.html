@@ -243,9 +243,25 @@ async function api(action, extra = {}) {
     body: JSON.stringify({ action, idToken: liff.getIDToken(), ...extra }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+  if (!data.ok) {
+    // ยืนยันตัวตนไม่ผ่าน (token หมดอายุระหว่างใช้งาน) → ล็อกอินใหม่ 1 ครั้ง ไม่วนซ้ำ
+    if (/ยืนยันตัวตน|ข้อมูลยืนยันตัวตน/.test(data.error || '') && !liff.isInClient() && sessionGet('relogin') !== '1') {
+      sessionSet('relogin', '1'); relogin(); return new Promise(() => {});
+    }
+    throw new Error(data.error || 'เกิดข้อผิดพลาด');
+  }
+  sessionSet('relogin', '');
   return data;
 }
+function idTokenFresh() {
+  try { const d = liff.getDecodedIDToken(); return !!d && d.exp * 1000 > Date.now() + 60000; } catch (_) { return false; }
+}
+function relogin() {
+  try { liff.logout(); } catch (_) { /* ไม่สำคัญ */ }
+  liff.login({ redirectUri: location.href });
+}
+function sessionGet(k) { try { return sessionStorage.getItem(k); } catch (_) { return null; } }
+function sessionSet(k, v) { try { sessionStorage.setItem(k, v); } catch (_) { /* ไม่สำคัญ */ } }
 
 /* ================== เริ่มต้น + เปลี่ยนหน้า ================== */
 async function init() {
@@ -257,6 +273,8 @@ async function init() {
     } else {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+      // เปิดในเบราว์เซอร์บนคอม (LINE PC): LIFF เก็บ ID token ไว้ในเบราว์เซอร์ หมดอายุแล้วจะยืนยันตัวตนไม่ผ่าน → ล็อกอินใหม่ให้เอง
+      if (!liff.isInClient() && !idTokenFresh()) { relogin(); return; }
       state.profile = await liff.getProfile();
       qs = new URLSearchParams(location.search); // อ่านหลัง liff.init (LIFF ส่งพารามิเตอร์มาผ่าน liff.state)
     }
