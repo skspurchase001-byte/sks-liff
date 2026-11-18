@@ -128,7 +128,7 @@
 </head>
 <body>
 <div id="mockBar" class="mock hidden">โหมดทดสอบ — ดูในบทบาท:
-  <span class="roles"><button data-as="clerk">เสมียน</button><button data-as="exec">ผู้บริหาร</button><button data-as="buyer">ผู้ไปซื้อ</button></span></div>
+  <span class="roles"><button data-as="clerk">เสมียน</button><button data-as="exec">ผู้บริหาร</button><button data-as="buyer">ผู้ไปซื้อ</button><button data-as="cash">การเงิน</button></span></div>
 <header id="hdr">
   <button class="back hidden" id="backBtn" aria-label="กลับ">‹</button>
   <img id="avatar" alt="">
@@ -956,12 +956,14 @@ const mockDB = (() => {
   const mk = (o) => ({ ...base, items: items.map((x) => ({ ...x, received: null, price: null, amount: 0, result: '', extra: false })), ...o });
   const db = [
     mk({ id: 'PO6911-0005', vendor: 'ร้านตระกูลพานิช', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.CREDIT, status: ST.WAIT_A1 }),
-    mk({ id: 'PO6911-0004', vendor: 'ร้านสง่ายานยนต์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.ADVANCE, advance: 2000, status: ST.TO_BUY, a1By: 'คุณสมชาย', a1At: '16/11/2569 09:12', validUntil: '23/11/2569' }),
+    mk({ id: 'PO6911-0004', vendor: 'ร้านสง่ายานยนต์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.ADVANCE, advance: 2000, status: ST.WAIT_CASH1, a1By: 'คุณสมชาย', a1At: '16/11/2569 09:12', validUntil: '23/11/2569' }),
     mk({ id: 'PO6911-0003', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.BOUGHT, a1By: 'คุณสมชาย', a1At: '15/11/2569 10:00', validUntil: '22/11/2569', prints: 1, boughtAt: '15/11/2569 14:20', billImages: MOCK_IMG, goodsImages: MOCK_IMG, gps: '12.1,102.5 https://maps.google.com/?q=12.1,102.5', flags: 'รูปบิลร้านถ่ายไว้ก่อนส่ง 45 นาที' }),
     mk({ id: 'PO6911-0002', vendor: 'ร้านสง่ายานยนต์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.ADVANCE, advance: 2000, status: ST.WAIT_A2, a1By: 'คุณสมชาย', a1At: '14/11/2569 09:00', validUntil: '21/11/2569', prints: 1, boughtAt: '14/11/2569 11:30', billImages: MOCK_IMG, goodsImages: MOCK_IMG, recvImages: MOCK_IMG,
       billNo: '28', total: 1480, receiver: 'นิด', receivedAt: '14/11/2569 15:00', result: 'ไม่ตรงใบสั่ง', recvNote: 'ลวดเชื่อมขาด 1 กล่อง ร้านส่งตามพรุ่งนี้', flags: 'ของไม่ตรงใบสั่ง 1 รายการ', settle: 'Aung Ko คืนเงินทอน 520.00 บาท (เบิก 2,000.00 − จ่ายจริง 1,480.00)',
       items: [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น', received: 1, price: 160, amount: 160, result: 'ครบ', extra: false }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง', received: 1, price: 1320, amount: 1320, result: 'ขาด 1', extra: false }] }),
-    mk({ id: 'PO6911-0001', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.WAIT_SETTLE, total: 160, settle: 'คืนเงินให้ Sokha 160.00 บาท (สำรองจ่าย)', a2By: 'คุณสมชาย', a2At: '13/11/2569 13:05' }),
+    mk({ id: 'PO6911-0001', vendor: 'ร้านตระกูลพานิช', buyer: 'Sokha', buyerId: 'Uother', payment: PAY.SELF, status: ST.WAIT_CASH2, total: 160, settle: 'คืนเงินให้ Sokha 160.00 บาท (สำรองจ่าย)',
+      billNo: 'B-114', receiver: 'นิด', receivedAt: '13/11/2569 12:40', result: 'ครบตามใบสั่ง', recvImages: MOCK_IMG, billImages: MOCK_IMG,
+      items: [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น', received: 1, price: 160, amount: 160, result: 'ครบ', extra: false }] }),
     // ใบซ่อม
     mk({ id: 'PO6911-0008', kind: KIND.SHOP, vendor: 'ร้านช่างหมูพันมอเตอร์', buyer: 'Aung Ko', buyerId: 'Ubuyer', payment: PAY.CREDIT, status: ST.TO_BUY, a1By: 'คุณสมชาย', a1At: '17/11/2569 08:30', validUntil: '24/11/2569', prints: 1,
       note: 'มอเตอร์มีเสียงดัง ร้อนจัด', items: [{ name: 'มอเตอร์ 5HP เครื่องไส #2', qty: 1, unit: 'เครื่อง', asset: 'M-012', received: null, price: null, amount: 0, result: '', extra: false }] }),
@@ -978,7 +980,7 @@ const mockDB = (() => {
 })();
 function mockProfile() {
   const as = qs.get('as') || 'clerk';
-  state.profile = { displayName: { clerk: 'นิด (เสมียน)', exec: 'คุณสมชาย (ผู้บริหาร)', buyer: 'Aung Ko' }[as] };
+  state.profile = { displayName: { clerk: 'นิด (เสมียน)', exec: 'คุณสมชาย (ผู้บริหาร)', buyer: 'Aung Ko', cash: 'จุฑามาศ (การเงิน)' }[as] };
   document.querySelectorAll('#mockBar [data-as]').forEach((b) => b.classList.toggle('on', b.dataset.as === as));
 }
 /** สลับบทบาทในหน้าเดิม (ไม่ต้องโหลดหน้าใหม่) */
@@ -990,7 +992,9 @@ async function mockSwitch(as) {
 }
 function mockWho() {
   const as = qs.get('as') || 'clerk';
-  return { uid: as === 'buyer' ? 'Ubuyer' : as === 'exec' ? 'Uexec' : 'Uclerk', isClerk: as === 'clerk', isExec: as === 'exec', role: { clerk: 'เสมียน', exec: 'ผู้บริหาร', buyer: 'ผู้ซื้อ' }[as] };
+  const uid = { buyer: 'Ubuyer', exec: 'Uexec', cash: 'Ucash' }[as] || 'Uclerk';
+  return { uid, isClerk: as === 'clerk', isExec: as === 'exec', isCash: as === 'cash',
+    role: { clerk: 'เสมียน', exec: 'ผู้บริหาร', buyer: 'ผู้ซื้อ', cash: 'การเงิน' }[as] };
 }
 function mockLog(r) {
   const L1 = [{ at: r.created, action: 'สร้างใบสั่งซื้อ', by: 'นิด', role: 'เสมียน', detail: `${r.vendor} · ${r.payment} · ผู้ไปซื้อ ${r.buyer}` }];
