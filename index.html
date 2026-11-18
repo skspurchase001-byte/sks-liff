@@ -306,7 +306,7 @@ let verTimer = null, lastVer = '';
 function startVerWatch() {
   if (MOCK || verTimer) return;
   lastVer = state.me.ver || '';
-  verTimer = setInterval(checkVer, 20000);
+  verTimer = setInterval(checkVer, 45000); // ถี่กว่านี้ไม่จำเป็น และทำให้เซิร์ฟเวอร์ทำงานหนักขึ้น
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVer(); });
   window.addEventListener('focus', checkVer);
 }
@@ -347,7 +347,7 @@ function localSet(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* ไ
 /* ================== หน้าแรก (แยกตามบทบาท) ================== */
 async function viewHome() {
   const u = state.me.user;
-  const officer = u.isClerk || u.isExec;
+  const officer = u.isClerk || u.isExec || u.isCash;
   header(officer ? 'ระบบใบสั่งซื้อ SKS' : t('jobs'), `${state.profile.displayName} · ${u.role || 'ผู้ซื้อ'}`);
   const pre = state.preList; state.preList = null; // ใช้ผลที่โหลดคู่ไปกับ me ตอนเปิดระบบ (ครั้งแรกเท่านั้น)
   const data = (pre && await pre) || await api('list');
@@ -365,15 +365,18 @@ async function viewHome() {
   if (u.isClerk) app.append(h('button', { class: 'btn primary full', style: 'margin:8px 0 4px', onclick: () => go('create') }, '+ สร้างใบใหม่ (ซื้อของ / ส่งซ่อม)'));
 
   if (officer) {
+    const cashTitle = u.isCash ? ' — แตะเพื่อจ่าย/รับเงิน' : ' (รอการเงิน)';
     const groups = [
+      [ST.WAIT_CASH1, '💵 รอจ่ายเงินเบิกล่วงหน้า' + cashTitle],
+      [ST.WAIT_CASH2, '💵 รอเคลียร์เงินหลังตรวจรับ' + cashTitle],
       [ST.WAIT_A2, u.isExec ? '✍️ รอปิดรายการ — แตะเพื่อปิด' : '✍️ รอปิดรายการ (รอผู้บริหาร)'],
       [ST.WAIT_A1, u.isExec ? '🕐 รออนุมัติ — แตะเพื่ออนุมัติ' : '🕐 รออนุมัติ (รอผู้บริหาร)'],
       ['print', '🖨️ อนุมัติแล้ว — รอพิมพ์ใบ'],
       ['bought', '📦 ซื้อแล้ว — รอตรวจรับ'],
       ['repairing', '🔧 อยู่ระหว่างซ่อม — รอรับคืน / ตรวจงาน'],
       ['tobuy', '🛒 พิมพ์แล้ว — รอไปซื้อ / รอส่งซ่อม / รอช่าง'],
-      [ST.WAIT_SETTLE, '💵 รอเคลียร์เงิน'],
     ];
+    if (u.isCash && !u.isClerk && !u.isExec) groups.length = 2; // การเงินล้วน — เห็นเฉพาะงานเงิน
     const pick = (k) => data.open.filter((p) => k === 'print' ? p.status === ST.TO_BUY && !p.prints
       : k === 'tobuy' ? p.status === ST.TO_BUY && p.prints
       : k === 'bought' ? p.status === ST.BOUGHT && !isRepair(p)
@@ -1017,10 +1020,10 @@ async function mockApi(action, x) {
   const w = mockWho();
   const find = (id) => { const r = mockDB.find((p) => p.id === id); if (!r) throw new Error('ไม่พบ ' + id); return r; };
   const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags, kind: p.kind, days: p.days });
-  const open = [ST.WAIT_A1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_A2, ST.WAIT_SETTLE];
+  const open = [ST.WAIT_A1, ST.WAIT_CASH1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_CASH2, ST.WAIT_A2, ST.WAIT_SETTLE];
   console.log('[mock]', action, JSON.parse(JSON.stringify(x, (k, v) => (typeof v === 'string' && v.length > 200 ? v.slice(0, 50) + '…' : v))));
   switch (action) {
-    case 'me': return { ok: true, user: { name: state.profile.displayName, role: w.role, lang: '', isClerk: w.isClerk, isExec: w.isExec },
+    case 'me': return { ok: true, user: { name: state.profile.displayName, role: w.role, lang: '', isClerk: w.isClerk, isExec: w.isExec, isCash: w.isCash },
       departments: ['ฝ่ายผลิต', 'ซ่อมบำรุง', 'คลังสินค้า', 'สำนักงาน'], vendors: [{ name: 'ร้านสง่ายานยนต์', payment: PAY.CREDIT }, { name: 'ร้านตระกูลพานิช', payment: PAY.ADVANCE }],
       payments: Object.values(PAY), kinds: Object.values(KIND), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
     case 'setLang': return { ok: true };
