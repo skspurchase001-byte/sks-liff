@@ -147,9 +147,11 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbxFmiolDGfEDy2uiENNKzud
 const MAX_IMAGES = 5, IMG_MAX_SIDE = 1600, IMG_QUALITY = 0.8;
 
 const PAY = { CREDIT: 'วางบิล (เครดิต)', ADVANCE: 'เงินสด – เบิกล่วงหน้า', SELF: 'เงินสด – สำรองจ่าย' };
-const ST = { WAIT_A1: 'รออนุมัติสั่งซื้อ', TO_BUY: 'อนุมัติแล้ว รอซื้อ', BOUGHT: 'ซื้อแล้ว รอตรวจรับ', WAIT_A2: 'ตรวจรับแล้ว รอปิด',
+const ST = { WAIT_A1: 'รออนุมัติสั่งซื้อ', WAIT_CASH1: 'รอการเงินจ่ายเงินเบิก', TO_BUY: 'อนุมัติแล้ว รอซื้อ',
+  BOUGHT: 'ซื้อแล้ว รอตรวจรับ', WAIT_CASH2: 'รอการเงินเคลียร์เงิน', WAIT_A2: 'ตรวจรับแล้ว รอปิด',
   WAIT_SETTLE: 'รอเคลียร์เงิน', CLOSED: 'ปิดรายการแล้ว', REJECTED: 'ไม่อนุมัติ', CANCELLED: 'ยกเลิก' };
 const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's-buy', [ST.WAIT_A2]: 's-wait',
+  [ST.WAIT_CASH1]: 's-settle', [ST.WAIT_CASH2]: 's-settle',
   [ST.WAIT_SETTLE]: 's-settle', [ST.CLOSED]: 's-ok', [ST.REJECTED]: 's-bad', [ST.CANCELLED]: 's-gray' };
 
 /* ประเภทใบ — ใช้ขั้นตอนเดียวกัน ต่างกันที่คำเรียกและรูปหลักฐาน (ตรงกับ KIND_WORD ฝั่งเซิร์ฟเวอร์) */
@@ -279,8 +281,12 @@ async function init() {
       qs = new URLSearchParams(location.search); // อ่านหลัง liff.init (LIFF ส่งพารามิเตอร์มาผ่าน liff.state)
     }
     if (state.profile.pictureUrl) $('avatar').src = state.profile.pictureUrl; else $('avatar').style.display = 'none';
-    state.me = await api('me');
+    // โหลด me กับ list พร้อมกัน — เดิมรอทีละอัน ทำให้เปิดหน้าแรกช้าเป็นสองเท่า
+    const mePromise = api('me');
+    state.preList = api('list').catch(() => null);
+    state.me = await mePromise;
     state.lang = state.me.user.lang || localGet('lang') || 'th';
+    startVerWatch();
     $('backBtn').onclick = () => history.back();
     window.onpopstate = (e) => route(e.state || { view: 'home' }, false);
     const mode = qs.get('mode');
@@ -290,6 +296,31 @@ async function init() {
     }
     await route(first, first.view !== 'home');
   } catch (err) { showError(err); }
+}
+
+/* ---------- รีเฟรชอัตโนมัติ ----------
+ * เปิดหน้าค้างไว้บนคอม แล้วมีคนอื่นอนุมัติ/ตรวจรับ/จ่ายเงิน → หน้าจอโหลดรายการใหม่ให้เอง
+ * เช็คแค่ "เลขรุ่นข้อมูล" ตัวเดียว (เบามาก) และรีเฟรชเฉพาะหน้ารายการกับหน้าใบ ไม่รบกวนตอนกรอกฟอร์ม
+ */
+let verTimer = null, lastVer = '';
+function startVerWatch() {
+  if (MOCK || verTimer) return;
+  lastVer = state.me.ver || '';
+  verTimer = setInterval(checkVer, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVer(); });
+  window.addEventListener('focus', checkVer);
+}
+async function checkVer() {
+  if (document.hidden) return;
+  if (state.view !== 'home' && state.view !== 'po') return;          // กำลังกรอกฟอร์มอยู่ อย่าเพิ่งโหลดทับ
+  if ($('overlay').classList.contains('show')) return;               // กำลังบันทึกอยู่
+  try {
+    const v = (await (await fetch(GAS_URL + '?ver=1', { cache: 'no-store' })).text()).trim();
+    if (!v || v === '0' || v === lastVer) return;
+    lastVer = v;
+    await route({ view: state.view, id: state.id }, false);
+    toast('🔄 มีรายการเปลี่ยนแปลง — อัปเดตให้แล้ว', 3000);
+  } catch (_) { /* เน็ตสะดุด เดี๋ยวรอบหน้าเช็คใหม่ */ }
 }
 
 async function go(view, id) { await route({ view, id }, true); }
@@ -318,7 +349,8 @@ async function viewHome() {
   const u = state.me.user;
   const officer = u.isClerk || u.isExec;
   header(officer ? 'ระบบใบสั่งซื้อ SKS' : t('jobs'), `${state.profile.displayName} · ${u.role || 'ผู้ซื้อ'}`);
-  const data = await api('list');
+  const pre = state.preList; state.preList = null; // ใช้ผลที่โหลดคู่ไปกับ me ตอนเปิดระบบ (ครั้งแรกเท่านั้น)
+  const data = (pre && await pre) || await api('list');
   const app = $('app'); app.innerHTML = '';
 
   if (!officer || data.jobs.length) {
@@ -499,6 +531,7 @@ async function viewPO() {
       ['เลขที่บิลร้าน', r.billNo], ['ยอดตามบิล', r.receivedAt ? fmt(r.total) + ' บาท' : ''],
       ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result],
       ['ผลทดสอบหลังซ่อม', r.test ? h('b', { class: r.test === 'ใช้งานได้' ? 'ok' : 'bad' }, r.test) : ''], ['หมายเหตุตรวจรับ', r.recvNote],
+      ['จ่ายเงินเบิก', r.advBy ? `${r.advBy} · ${r.advAt}` : ''],
       ['ปิดรายการ', r.a2By ? `${r.a2By} · ${r.a2At}` : ''], ['การเงิน', r.settle], ['เคลียร์เงิน', r.settleBy ? `${r.settleBy} · ${r.settleAt}` : '']]),
     flagsBox(r.flags)));
 
@@ -542,8 +575,23 @@ async function viewPO() {
     h('div', { class: 'actions two' },
       h('button', { class: 'btn primary', onclick: () => run('approve2', { approve: true }) }, '✅ ปิดรายการ'),
       h('button', { class: 'btn line', onclick: () => { const n = prompt('ส่งกลับให้ตรวจใหม่เพราะ'); if (n !== null) run('approve2', { approve: false, note: n }); } }, '↩️ ส่งกลับตรวจใหม่')));
-  if (can.settle) acts.append(h('div', { class: 'info' }, '💵 ' + r.settle),
-    h('button', { class: 'btn primary full', onclick: () => { if (confirm(`ยืนยันว่าเคลียร์เงินแล้ว?\n${r.settle}`)) run('settle', {}); } }, '✅ เคลียร์เงินแล้ว'));
+  // การเงินขั้นที่ 1 — จ่ายเงินเบิกล่วงหน้าก่อนออกไปซื้อ (แก้ยอดได้ถ้าจ่ายจริงไม่เท่ากับที่ขอเบิก)
+  if (can.cash1) {
+    const amt = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', value: String(r.advance || '') });
+    acts.append(
+      h('div', { class: 'info' }, `💵 จ่ายเงินเบิกให้ ${r.buyer} — ยอดที่ขอเบิก ${fmt(r.advance)} บาท`),
+      h('label', {}, 'จำนวนเงินที่จ่ายจริง (บาท)', amt),
+      h('button', { class: 'btn primary full', onclick: () => {
+        const v = Number(amt.value);
+        if (!(v > 0)) return toast('กรุณาใส่จำนวนเงินที่จ่ายจริง');
+        if (confirm(`ยืนยันว่าจ่ายเงิน ${fmt(v)} บาท ให้ ${r.buyer} แล้ว?`)) run('cashPre', { amount: v }, 'กำลังบันทึกการจ่ายเงิน…');
+      } }, '💵 จ่ายเงินเบิกแล้ว'));
+  }
+  // การเงินขั้นที่ 2 — รับเงินทอนคืน / จ่ายเพิ่ม / คืนเงินสำรองจ่าย แล้วส่งให้ผู้บริหารปิดงาน
+  if (can.cash2) acts.append(h('div', { class: 'info' }, '💵 ' + (r.settle || res.settlePreview.text)),
+    h('button', { class: 'btn primary full', onclick: () => {
+      if (confirm(`ยืนยันว่าทำรายการเงินนี้แล้ว?\n${r.settle || res.settlePreview.text}`)) run('cashPost', {}, 'กำลังบันทึกการเคลียร์เงิน…');
+    } }, '✅ จ่าย/รับเงินเรียบร้อยแล้ว'));
   if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิก' + w.doc));
   Object.values(can.why || {}).forEach((w) => acts.append(h('div', { class: 'warn' }, '🔒 ' + w)));
   if (res.evidenceUrl) acts.append(h('button', { class: 'btn ghost full', onclick: () => openExternal(res.evidenceUrl) }, '📂 หน้าหลักฐานทั้งหมด (ลิงก์เดียวกับในไฟล์บัญชี)'));
@@ -956,7 +1004,9 @@ function mockPerms(r) {
   const w = mockWho(); const s = r.status;
   return { view: true, approve1: w.isExec && s === ST.WAIT_A1, print: (w.isClerk || w.isExec) && (s === ST.TO_BUY || s === ST.BOUGHT),
     buy: (r.buyerId === w.uid || (isRepair(r) && w.isClerk)) && s === ST.TO_BUY, receive: w.isClerk && (s === ST.TO_BUY || s === ST.BOUGHT),
-    approve2: w.isExec && s === ST.WAIT_A2, settle: w.isClerk && s === ST.WAIT_SETTLE, cancel: (w.isClerk || w.isExec) && (s === ST.WAIT_A1 || s === ST.TO_BUY), why: {} };
+    approve2: w.isExec && s === ST.WAIT_A2,
+    cash1: (w.isCash || w.isExec) && s === ST.WAIT_CASH1, cash2: (w.isCash || w.isExec) && s === ST.WAIT_CASH2,
+    cancel: (w.isClerk || w.isExec) && (s === ST.WAIT_A1 || s === ST.TO_BUY), why: {} };
 }
 async function mockApi(action, x) {
   await new Promise((r) => setTimeout(r, 300));
@@ -986,7 +1036,8 @@ async function mockApi(action, x) {
       else r.result = all ? 'ครบตามใบสั่ง' : 'ไม่ตรงใบสั่ง';
       return { ok: true, id: r.id, result: r.result, settle: { text: r.settle } }; }
     case 'approve2': { const r = find(x.id); r.status = x.approve ? (r.payment === PAY.CREDIT ? ST.CLOSED : ST.WAIT_SETTLE) : ST.BOUGHT; return { ok: true, message: 'บันทึกแล้ว' }; }
-    case 'settle': { find(x.id).status = ST.CLOSED; return { ok: true, message: 'เคลียร์เงินแล้ว' }; }
+    case 'cashPre': { const r = find(x.id); r.advance = x.amount; r.status = ST.TO_BUY; return { ok: true, message: 'จ่ายเงินเบิกแล้ว' }; }
+    case 'cashPost': { const r = find(x.id); r.status = ST.WAIT_A2; r.settleBy = 'การเงิน'; return { ok: true, message: 'เคลียร์เงินแล้ว' }; }
     case 'cancel': { find(x.id).status = ST.CANCELLED; return { ok: true, message: 'ยกเลิกแล้ว' }; }
   }
   throw new Error('unknown action ' + action);
