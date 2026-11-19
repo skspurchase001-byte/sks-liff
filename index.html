@@ -148,9 +148,9 @@ const MAX_IMAGES = 5, IMG_MAX_SIDE = 1600, IMG_QUALITY = 0.8;
 
 const PAY = { CREDIT: 'วางบิล (เครดิต)', ADVANCE: 'เงินสด – เบิกล่วงหน้า', SELF: 'เงินสด – สำรองจ่าย' };
 const ST = { WAIT_A1: 'รออนุมัติสั่งซื้อ', WAIT_CASH1: 'รอการเงินจ่ายเงินเบิก', TO_BUY: 'อนุมัติแล้ว รอซื้อ',
-  BOUGHT: 'ซื้อแล้ว รอตรวจรับ', WAIT_CASH2: 'รอการเงินเคลียร์เงิน', WAIT_A2: 'ตรวจรับแล้ว รอปิด',
+  BOUGHT: 'ซื้อแล้ว รอตรวจรับ', FIXED: 'ซ่อมเสร็จแล้ว รอตรวจรับ', WAIT_CASH2: 'รอการเงินเคลียร์เงิน', WAIT_A2: 'ตรวจรับแล้ว รอปิด',
   WAIT_SETTLE: 'รอเคลียร์เงิน', CLOSED: 'ปิดรายการแล้ว', REJECTED: 'ไม่อนุมัติ', CANCELLED: 'ยกเลิก' };
-const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's-buy', [ST.WAIT_A2]: 's-wait',
+const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's-buy', [ST.FIXED]: 's-buy', [ST.WAIT_A2]: 's-wait',
   [ST.WAIT_CASH1]: 's-settle', [ST.WAIT_CASH2]: 's-settle',
   [ST.WAIT_SETTLE]: 's-settle', [ST.CLOSED]: 's-ok', [ST.REJECTED]: 's-bad', [ST.CANCELLED]: 's-gray' };
 
@@ -166,9 +166,16 @@ const KW = {
     start: '📸 ถ่ายรูปก่อนช่างเริ่มซ่อม', recv: '🔧 ตรวจงานซ่อม' },
 };
 const TESTS = ['ใช้งานได้', 'ยังมีปัญหา', 'ซ่อมไม่ได้'];
+/* เสมียนเห็นของจริงหรือไม่ตอนตรวจรับใบซ่อม (ตรงกับ SEEN_LIST ฝั่งเซิร์ฟเวอร์) */
+const SEENS = [
+  { key: 'factory', text: 'ตรวจของจริงที่โรงงาน' },
+  { key: 'site', text: 'ไปตรวจของจริงที่หน้างาน/ที่ร้าน' },
+  { key: 'photo', text: 'ของอยู่ไกล ตรวจจากรูปที่ผู้ส่งซ่อมถ่ายมา' },
+];
 const kw = (r) => KW[r && r.kind] || KW[KIND.BUY];
 const isRepair = (r) => !!r && (r.kind === KIND.SHOP || r.kind === KIND.SITE);
-const stText = (r) => r.status === ST.TO_BUY ? kw(r).toDo : r.status === ST.BOUGHT ? kw(r).done : r.status;
+const stText = (r) => r.status === ST.TO_BUY ? kw(r).toDo : r.status === ST.BOUGHT ? kw(r).done
+  : r.status === ST.FIXED ? 'ซ่อมเสร็จแล้ว รอเสมียนตรวจรับ' : r.status;
 
 /* ข้อความหน้าผู้ไปซื้อ 3 ภาษา — ควรให้คนงานที่พูดภาษานั้นตรวจทาน */
 const L = {
@@ -180,7 +187,13 @@ const L = {
     close: 'ปิด', err: 'ส่งไม่สำเร็จ ลองใหม่', max: 'ถ่ายได้สูงสุด 5 รูป', old: 'รูปนี้ไม่ใช่รูปที่เพิ่งถ่าย',
     gpsOk: 'ได้ตำแหน่งแล้ว', gpsWait: 'กำลังหาตำแหน่ง…', gpsBad: 'เปิดตำแหน่ง (GPS) แล้วแตะที่นี่', myRecent: 'งานที่ส่งแล้ว',
     r1: 'ถ่ายรูปของก่อนซ่อม', r1b: 'ให้เห็นเลขเครื่อง/ป้ายทรัพย์สินชัด', r2: 'ยื่นใบส่งซ่อมให้ร้าน/ช่าง', r2b: 'บอกให้คืนอะไหล่เก่าทุกชิ้น',
-    needBefore: 'ต้องถ่ายรูปก่อนซ่อม', doneRSub: 'นำของไปส่งร้านซ่อม พร้อมใบส่งซ่อม' },
+    needBefore: 'ต้องถ่ายรูปก่อนซ่อม', doneRSub: 'นำของไปส่งร้านซ่อม พร้อมใบส่งซ่อม',
+    r3: 'ถ่ายรูปของหลังซ่อมเสร็จ', r3b: 'ให้เห็นเลขเครื่อง/ป้ายทรัพย์สินชัด',
+    r4: 'ถ่ายรูปอะไหล่เก่าที่ถอดออก', r4b: 'วางอะไหล่เก่าทุกชิ้นให้เห็นชัด', noParts: 'ไม่มีการเปลี่ยนอะไหล่',
+    r5: 'ถ่ายรูปบิลค่าซ่อม', r5b: 'บิลร้าน หรือใบสั่งงานที่ช่างเขียนราคา',
+    testQ: 'ลองใช้แล้วเป็นอย่างไร', t1: 'ใช้งานได้', t2: 'ยังมีปัญหา', t3: 'ซ่อมไม่ได้',
+    needAfter: 'ต้องถ่ายรูปหลังซ่อม', needPart: 'ต้องถ่ายรูปอะไหล่เก่า หรือติ๊กว่าไม่มีการเปลี่ยน',
+    needTest: 'ต้องเลือกผลการลองใช้', doneFixSub: 'นำอะไหล่เก่าและบิลกลับมาให้เสมียน' },
   my: { name: 'မြန်မာ', jobs: 'ကျွန်ုပ်၏ ဝယ်ယူရန်အလုပ်', none: 'ဝယ်ရန်အလုပ် မရှိသေးပါ', tap: 'စရန် နှိပ်ပါ',
     s1: 'မှာစာကို ဆိုင်သို့ ပေးပါ', s1b: 'ဘောက်ချာပေါ်တွင် PO နံပါတ် ရေးခိုင်းပါ',
     s2: 'ဆိုင်ဘောက်ချာ ဓာတ်ပုံရိုက်ပါ', s2b: 'ဆိုင်ဘောက်ချာ (သို့) ဈေးနှုန်းရေးထားသော မှာစာ', s3: 'ဝယ်ထားသောပစ္စည်း ဓာတ်ပုံရိုက်ပါ', s3b: 'ပစ္စည်းအားလုံး ရှင်းရှင်းမြင်ရအောင် ချထားပါ',
@@ -189,7 +202,14 @@ const L = {
     close: 'ပိတ်မည်', err: 'ပို့၍မရပါ၊ ထပ်ကြိုးစားပါ', max: 'ဓာတ်ပုံ ၅ ပုံအထိသာ', old: 'ဤဓာတ်ပုံသည် ယခုရိုက်ထားခြင်း မဟုတ်ပါ',
     gpsOk: 'တည်နေရာ ရပြီ', gpsWait: 'တည်နေရာ ရှာနေသည်…', gpsBad: 'တည်နေရာ (GPS) ဖွင့်ပြီး ဒီမှာနှိပ်ပါ', myRecent: 'ပို့ပြီးသောအလုပ်',
     r1: 'မပြင်မီ ပစ္စည်းဓာတ်ပုံရိုက်ပါ', r1b: 'စက်နံပါတ်/ပိုင်ဆိုင်မှုတံဆိပ် ရှင်းရှင်းမြင်ရပါစေ', r2: 'ပြင်ဆင်ရန်စာကို ဆိုင်/ဆရာ ထံ ပေးပါ', r2b: 'လဲထားသော အပိုပစ္စည်းဟောင်းအားလုံး ပြန်ပေးရန် ပြောပါ',
-    needBefore: 'မပြင်မီ ဓာတ်ပုံ လိုအပ်သည်', doneRSub: 'ပစ္စည်းကို ပြင်ဆင်ရန်စာနှင့်အတူ ပြင်ဆိုင်သို့ ယူသွားပါ' },
+    needBefore: 'မပြင်မီ ဓာတ်ပုံ လိုအပ်သည်', doneRSub: 'ပစ္စည်းကို ပြင်ဆင်ရန်စာနှင့်အတူ ပြင်ဆိုင်သို့ ယူသွားပါ',
+    r3: 'ပြင်ပြီးသော ပစ္စည်းကို ဓာတ်ပုံရိုက်ပါ', r3b: 'စက်နံပါတ်/ပိုင်ဆိုင်မှုတံဆိပ် ရှင်းရှင်းမြင်ရပါစေ',
+    r4: 'ဖြုတ်ထားသော အပိုပစ္စည်းဟောင်းကို ဓာတ်ပုံရိုက်ပါ', r4b: 'အပိုပစ္စည်းဟောင်း အားလုံးကို ရှင်းရှင်းမြင်ရအောင် ချထားပါ',
+    noParts: 'အပိုပစ္စည်း လဲလှယ်ခြင်း မရှိပါ',
+    r5: 'ပြင်ခ ဘောက်ချာ ဓာတ်ပုံရိုက်ပါ', r5b: 'ဆိုင်ဘောက်ချာ (သို့) ဈေးနှုန်းရေးထားသော အလုပ်အပ်စာ',
+    testQ: 'စမ်းသုံးကြည့်ရာ မည်သို့ရှိသနည်း', t1: 'အဆင်ပြေသည်', t2: 'ပြဿနာ ရှိနေသေးသည်', t3: 'ပြင်၍ မရပါ',
+    needAfter: 'ပြင်ပြီးနောက် ဓာတ်ပုံ လိုအပ်သည်', needPart: 'အပိုပစ္စည်းဟောင်း ဓာတ်ပုံရိုက်ပါ (သို့) မလဲထားပါက အမှန်ခြစ်ပါ',
+    needTest: 'စမ်းသုံးရလဒ် ရွေးပါ', doneFixSub: 'အပိုပစ္စည်းဟောင်းနှင့် ဘောက်ချာကို စာရေးထံ ယူလာပါ' },
   km: { name: 'ខ្មែរ', jobs: 'ការងារទិញរបស់ខ្ញុំ', none: 'មិនទាន់មានការងារទិញទេ', tap: 'ចុចដើម្បីចាប់ផ្តើម',
     s1: 'ប្រគល់ប័ណ្ណបញ្ជាទិញឱ្យហាង', s1b: 'ឱ្យហាងសរសេរលេខ PO លើវិក្កយបត្រ',
     s2: 'ថតរូបវិក្កយបត្រហាង', s2b: 'វិក្កយបត្រហាង ឬប័ណ្ណបញ្ជាទិញដែលហាងសរសេរតម្លៃ', s3: 'ថតរូបទំនិញដែលបានទិញ', s3b: 'ដាក់ទំនិញទាំងអស់ឱ្យឃើញច្បាស់',
@@ -198,7 +218,14 @@ const L = {
     close: 'បិទ', err: 'ផ្ញើមិនបានទេ សូមព្យាយាមម្តងទៀត', max: 'ថតបានច្រើនបំផុត ៥ រូប', old: 'រូបនេះមិនមែនទើបថតទេ',
     gpsOk: 'បានទីតាំងហើយ', gpsWait: 'កំពុងរកទីតាំង…', gpsBad: 'បើកទីតាំង (GPS) ហើយចុចទីនេះ', myRecent: 'ការងារដែលបានផ្ញើ',
     r1: 'ថតរូបរបស់មុនជួសជុល', r1b: 'ឱ្យឃើញលេខម៉ាស៊ីន/ស្លាកទ្រព្យសម្បត្តិច្បាស់', r2: 'ប្រគល់ប័ណ្ណបញ្ជូនជួសជុលឱ្យហាង/ជាង', r2b: 'ប្រាប់ឱ្យប្រគល់គ្រឿងបន្លាស់ចាស់ទាំងអស់មកវិញ',
-    needBefore: 'ត្រូវថតរូបមុនជួសជុល', doneRSub: 'យករបស់ទៅហាងជួសជុល ជាមួយប័ណ្ណបញ្ជូនជួសជុល' },
+    needBefore: 'ត្រូវថតរូបមុនជួសជុល', doneRSub: 'យករបស់ទៅហាងជួសជុល ជាមួយប័ណ្ណបញ្ជូនជួសជុល',
+    r3: 'ថតរូបរបស់បន្ទាប់ពីជួសជុលរួច', r3b: 'ឱ្យឃើញលេខម៉ាស៊ីន/ស្លាកទ្រព្យសម្បត្តិច្បាស់',
+    r4: 'ថតរូបគ្រឿងបន្លាស់ចាស់ដែលបានដោះចេញ', r4b: 'ដាក់គ្រឿងបន្លាស់ចាស់ទាំងអស់ឱ្យឃើញច្បាស់',
+    noParts: 'មិនមានការប្តូរគ្រឿងបន្លាស់ទេ',
+    r5: 'ថតរូបវិក្កយបត្រថ្លៃជួសជុល', r5b: 'វិក្កយបត្រហាង ឬប័ណ្ណបញ្ជាការងារដែលសរសេរតម្លៃ',
+    testQ: 'សាកប្រើហើយ យ៉ាងណាដែរ?', t1: 'ប្រើការបាន', t2: 'នៅមានបញ្ហា', t3: 'ជួសជុលមិនបាន',
+    needAfter: 'ត្រូវថតរូបបន្ទាប់ពីជួសជុល', needPart: 'ត្រូវថតរូបគ្រឿងបន្លាស់ចាស់ ឬគូសថាមិនបានប្តូរ',
+    needTest: 'ត្រូវជ្រើសរើសលទ្ធផលសាកប្រើ', doneFixSub: 'យកគ្រឿងបន្លាស់ចាស់ និងវិក្កយបត្រ មកឱ្យស្មៀន' },
 };
 
 /* ================== สถานะ ================== */
@@ -330,7 +357,7 @@ async function route(s, push) {
     try { history.pushState(s, '', '?' + new URLSearchParams({ ...(MOCK ? { mock: '', as: qs.get('as') || 'clerk' } : {}), mode: s.view, ...(s.id ? { id: s.id } : {}) })); }
     catch (_) { try { history.pushState(s, ''); } catch (__) { /* หน้าทดสอบแบบ data: URL */ } }
   }
-  state.view = s.view; state.id = s.id || ''; state.photos = { bill: [], goods: [], recv: [], before: [], oldpart: [] };
+  state.view = s.view; state.id = s.id || ''; state.photos = { bill: [], goods: [], recv: [], before: [], oldpart: [] }; state.fixTest = ''; state.fixNoPart = null;
   setBar('', null); scrollTo(0, 0);
   $('app').innerHTML = '<div class="center">กำลังโหลด…</div>';
   try {
@@ -359,8 +386,9 @@ async function viewHome() {
     app.append(h('div', { class: 'group' }, '🛒 ' + t('jobs')));
     if (!data.jobs.length) app.append(h('div', { class: 'card empty', style: 'font-size:18px' }, t('none')));
     data.jobs.forEach((p) => app.append(h('div', { class: 'job', onclick: () => go('buy', p.id) },
-      h('div', { class: 'ic' }, kw(p).ic),
-      h('div', {}, h('div', { class: 'v' }, p.vendor), h('div', { class: 'm' }, `${p.id} · ${t('tap')} ›`)))));
+      h('div', { class: 'ic' }, p.status === ST.BOUGHT ? '✅' : kw(p).ic),
+      h('div', {}, h('div', { class: 'v' }, p.vendor),
+        h('div', { class: 'm' }, `${p.id} · ${p.status === ST.BOUGHT ? t('r3') : t('tap')} ›`)))));
   }
 
   if (u.isClerk) app.append(h('button', { class: 'btn primary full', style: 'margin:8px 0 4px', onclick: () => go('create') }, '+ สร้างใบใหม่ (ซื้อของ / ส่งซ่อม)'));
@@ -374,6 +402,7 @@ async function viewHome() {
       [ST.WAIT_A1, u.isExec ? '🕐 รออนุมัติ — แตะเพื่ออนุมัติ' : '🕐 รออนุมัติ (รอผู้บริหาร)'],
       ['print', '🖨️ อนุมัติแล้ว — รอพิมพ์ใบ'],
       ['bought', '📦 ซื้อแล้ว — รอตรวจรับ'],
+      [ST.FIXED, '🔧 ซ่อมเสร็จแล้ว — รอตรวจรับและใส่ราคา'],
       ['repairing', '🔧 อยู่ระหว่างซ่อม — รอรับคืน / ตรวจงาน'],
       ['tobuy', '🛒 พิมพ์แล้ว — รอไปซื้อ / รอส่งซ่อม / รอช่าง'],
     ];
@@ -673,7 +702,9 @@ async function viewPO() {
       ['ราคาที่ร้านประเมิน', r.estimate ? `${fmt(r.estimate)} บาท${r.estimateAt ? ' · ' + r.estimateAt : ''}${r.estimateNote ? '\n' + r.estimateNote : ''}` : ''],
       ['เลขที่บิลร้าน', r.billNo], ['ยอดตามบิล', r.receivedAt ? fmt(r.total) + ' บาท' : ''],
       ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result],
-      ['ผลทดสอบหลังซ่อม', r.test ? h('b', { class: r.test === 'ใช้งานได้' ? 'ok' : 'bad' }, r.test) : ''], ['หมายเหตุตรวจรับ', r.recvNote],
+      ['ผลทดสอบหลังซ่อม', r.test ? h('b', { class: r.test === 'ใช้งานได้' ? 'ok' : 'bad' }, r.test) : ''],
+      ['ส่งหลักฐานหลังซ่อม', r.fixedAt], ['เสมียนเห็นของจริง', r.seen],
+      ['หมายเหตุตรวจรับ', r.recvNote],
       ['จ่ายเงินเบิก', r.advBy ? `${r.advBy} · ${r.advAt}` : ''],
       ['ปิดรายการ', r.a2By ? `${r.a2By} · ${r.a2At}` : ''], ['การเงิน', r.settle], ['เคลียร์เงิน', r.settleBy ? `${r.settleBy} · ${r.settleAt}` : '']]),
     flagsBox(r.flags)));
@@ -690,7 +721,10 @@ async function viewPO() {
 
   // ใบซ่อม: เรียงรูปก่อน-หลังซ่อมไว้ติดกัน ให้ผู้บริหารเทียบได้ทันที
   const photos = (repair
-    ? [['รูปก่อนซ่อม', r.beforeImages || []], ['รูปหลังซ่อม', r.recvImages], ['รูปอะไหล่เก่าที่ถอดออก', r.oldPartImages || []], ['รูปบิล/ใบเสร็จค่าซ่อม', r.billImages]]
+    ? [['รูปก่อนซ่อม', r.beforeImages || []], ['รูปหลังซ่อม (ผู้ส่งซ่อมถ่ายที่ร้าน)', r.afterImages || []],
+      ['รูปอะไหล่เก่าที่ถอดออก', r.oldPartImages || []],
+      [(r.afterImages || []).length ? 'รูปเสมียนยืนยันสภาพ' : 'รูปหลังซ่อม', r.recvImages],
+      ['รูปบิล/ใบเสร็จค่าซ่อม', r.billImages]]
     : [['รูปบิลร้าน', r.billImages], ['รูปของที่ร้าน', r.goodsImages], ['รูปตอนรับของ', r.recvImages]]).filter((p) => p[1].length);
   if (photos.length || r.noParts) app.append(h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลักฐาน'),
     ...photos.flatMap(([label, list]) => [h('div', { class: 'mini' }, label), linkThumbs(list)]),
@@ -711,6 +745,9 @@ async function viewPO() {
     r.prints ? `🖨️ พิมพ์ซ้ำ (จะขึ้น "สำเนา")` : '🖨️ พิมพ์' + w.doc),
     h('div', { class: 'hint' }, 'แนะนำให้เปิดจากคอมพิวเตอร์ที่ต่อเครื่องพิมพ์ (เปิด LINE บนคอมแล้วกดปุ่มนี้)'));
   if (can.buy) acts.append(h('button', { class: 'btn primary full', onclick: () => go('buy', r.id) }, w.start));
+  // ใบซ่อม: ไปรับของคืนแล้วส่งรูปหลังซ่อม อะไหล่เก่า บิล และผลลองใช้ จากหน้างานได้เลย
+  if (can.repairDone) acts.append(h('button', { class: 'btn primary full', onclick: () => go('buy', r.id) }, '✅ ซ่อมเสร็จแล้ว — ส่งรูปหลังซ่อม'),
+    h('div', { class: 'hint' }, 'ทำในมือถือตอนไปรับของที่ร้าน — ถ่ายรูปหลังซ่อม อะไหล่เก่า และบิล'));
   if (can.receive) acts.append(h('button', { class: 'btn blue full', onclick: () => go('receive', r.id) }, w.recv),
     repair ? h('div', { class: 'hint' }, 'ทำในมือถือ — ต้องถ่ายรูปหลังซ่อมตอนรับของจริง') : null);
   if (can.approve2) acts.append(
@@ -780,7 +817,7 @@ async function viewBuy() {
     header(r.vendor, r.id);
     const app = $('app'); app.innerHTML = '';
     app.append(langSwitch(render));
-    if (!res.can.buy) {
+    if (!res.can.buy && !res.can.repairDone) {
       app.append(h('div', { class: 'card done' }, h('div', { class: 'ic' }, '✅'), h('h1', {}, stText(r)), h('div', { class: 'id' }, r.id)));
       return setBar('', null);
     }
@@ -798,6 +835,30 @@ async function viewBuy() {
         h('button', { class: 'btn camera bigcam', 'data-cam': key }, '📷 ' + t('cam')));
       return sec;
     };
+    // ใบซ่อมที่ของอยู่ร้านแล้ว: ไปรับของคืน ถ่ายรูปหลังซ่อม อะไหล่เก่า บิล แล้วบอกผลลองใช้
+    if (isRepair(r) && r.status === ST.BOUGHT) {
+      const tSeg = h('div', { class: 'seg', style: 'grid-template-columns:1fr 1fr 1fr' },
+        ...[['t1', 'ใช้งานได้'], ['t2', 'ยังมีปัญหา'], ['t3', 'ซ่อมไม่ได้']].map(([k, v]) => h('div', { class: 'chip', 'data-v': v }, t(k))));
+      tSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+        tSeg.classList.remove('invalid');
+        tSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
+        c.classList.add('on'); if (c.dataset.v !== 'ใช้งานได้') c.classList.add('bad'); state.fixTest = c.dataset.v;
+      }));
+      const noPart = h('input', { type: 'checkbox', id: 'fixNoPart' });
+      state.fixNoPart = noPart;
+      app.append(info,
+        step('📷', '1. ' + t('r3'), t('r3b'), 'recv'),
+        (() => { const s = step('🔩', '2. ' + t('r4'), t('r4b'), 'oldpart');
+          s.append(h('label', { class: 'check' }, noPart, h('span', { style: 'font-size:16px' }, t('noParts')))); return s; })(),
+        step('🧾', '3. ' + t('r5'), t('r5b'), 'bill'),
+        h('section', { class: 'card' }, h('div', { class: 'step' }, h('div', { class: 'ic' }, '🔌'),
+          h('div', { class: 'tx' }, '4. ' + t('testQ'))), tSeg),
+        h('div', { id: 'gps', class: 'gps' }, '📍 ' + t('gpsWait')));
+      ['recv', 'oldpart', 'bill'].forEach(renderThumbs);
+      bindCameraButtons({ recv: 'หลังซ่อม', oldpart: 'อะไหล่เก่า', bill: 'บิลค่าซ่อม' });
+      showGps();
+      return setBar('✅ ' + t('send'), submitRepairDone);
+    }
     if (isRepair(r)) {
       // ใบซ่อม: ถ่ายรูปก่อนซ่อม (ที่โรงงาน) แล้วนำใบไปให้ร้าน/ช่าง
       app.append(info,
@@ -835,6 +896,25 @@ async function submitBuy() {
   finally { overlay(false); $('submitBtn').disabled = false; }
 }
 
+/** ผู้ส่งซ่อมไปรับของคืนที่ร้าน แล้วส่งหลักฐานหลังซ่อมตั้งแต่อยู่หน้างาน (ของใหญ่ขนกลับโรงงานไม่ได้) */
+async function submitRepairDone() {
+  const jump = (sel, msg) => { const el = document.querySelector(sel); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast(msg, 4000); };
+  if (!state.photos.recv.length) return jump('[data-cam=recv]', '📷 ' + t('needAfter'));
+  if (!state.photos.oldpart.length && !state.fixNoPart.checked) return jump('[data-cam=oldpart]', '🔩 ' + t('needPart'));
+  if (!state.fixTest) return jump('.seg', '🔌 ' + t('needTest'));
+  if (!state.location) await requestLocation();
+  $('submitBtn').disabled = true; overlay(true, t('sending'));
+  try {
+    await api('repairDone', { data: {
+      id: state.record.id, location: state.location, test: state.fixTest,
+      afterImages: state.photos.recv, oldPartImages: state.photos.oldpart,
+      billImages: state.photos.bill, noParts: state.fixNoPart.checked,
+    } });
+    showDone('✅', t('done'), state.record.id, '🔩 ' + t('doneFixSub'));
+  } catch (err) { toast(t('err') + ' — ' + err.message, 6000); }
+  finally { overlay(false); $('submitBtn').disabled = false; }
+}
+
 async function submitRepairStart() {
   if (!state.photos.before.length) { document.querySelector('[data-cam=before]').scrollIntoView({ behavior: 'smooth', block: 'center' }); return toast('📷 ' + t('needBefore'), 4000); }
   if (!state.location) await requestLocation();
@@ -859,6 +939,7 @@ async function viewReceive() {
   const extras = [];
   let quality = 'ok';
   let test = '';
+  let seen = '';
 
   app.append(h('section', { class: 'card' }, h('h2', {}, r.id, badge(r)),
     h('dl', { class: 'kv' }, ...[['ประเภท', repair ? `${w.ic} ${r.kind}` : ''], [w.vendor, r.vendor], [w.person, r.buyer], ['วิธีชำระ', r.payment],
@@ -939,24 +1020,48 @@ async function viewReceive() {
   const confirmBox = h('input', { type: 'checkbox', id: 'confirm' });
   const noParts = h('input', { type: 'checkbox', id: 'noParts' });
   if (repair) {
-    // ผลทดสอบหลังซ่อม (บังคับเลือก)
-    const tSeg = h('div', { class: 'seg', style: 'grid-template-columns:1fr 1fr 1fr' }, ...TESTS.map((x) => h('div', { class: 'chip', 'data-v': x }, x)));
+    const sent = r.status === ST.FIXED;   // ผู้ส่งซ่อมส่งหลักฐานหลังซ่อมมาแล้ว
+    test = sent && r.test ? r.test : '';
+    // หลักฐานที่ผู้ส่งซ่อมถ่ายมาจากร้าน — ดูก่อนตัดสินใจ
+    if (sent) {
+      const ev = h('section', { class: 'card' }, h('h2', {}, `🔧 หลักฐานจาก${w.person}`,
+        h('span', { class: 'hint', style: 'font-weight:400' }, r.fixedAt ? ' · ' + r.fixedAt : '')));
+      if (r.afterImages.length) ev.append(h('div', { class: 'mini' }, 'รูปหลังซ่อม'), linkThumbs(r.afterImages));
+      if (r.oldPartImages.length) ev.append(h('div', { class: 'mini' }, 'อะไหล่เก่าที่ถอดออก'), linkThumbs(r.oldPartImages));
+      else if (r.noParts) ev.append(h('div', { class: 'warn' }, '🔩 แจ้งว่าไม่มีการเปลี่ยนอะไหล่ — ตรวจกับบิลว่ามีค่าอะไหล่หรือไม่'));
+      app.append(ev);
+    }
+    // ผลทดสอบหลังซ่อม (บังคับเลือก) — ถ้าผู้ส่งซ่อมเลือกมาแล้วจะติ๊กไว้ให้ แก้ได้ถ้าลองใช้แล้วไม่ตรง
+    const tSeg = h('div', { class: 'seg', style: 'grid-template-columns:1fr 1fr 1fr' }, ...TESTS.map((x) => h('div',
+      { class: 'chip' + (x === test ? ' on' + (x === 'ใช้งานได้' ? '' : ' bad') : ''), 'data-v': x }, x)));
     tSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
       tSeg.classList.remove('invalid');
       tSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
       c.classList.add('on'); if (c.dataset.v !== 'ใช้งานได้') c.classList.add('bad'); test = c.dataset.v;
     }));
+    // เสมียนเห็นของจริงหรือไม่ — ของใหญ่บางอย่างขนกลับโรงงานไม่ได้ ให้เลือกตามจริง
+    const sSeg = h('div', { class: 'seg', style: 'grid-template-columns:1fr' }, ...SEENS.map((x) => h('div', { class: 'chip', 'data-v': x.key }, x.text)));
+    sSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
+      sSeg.classList.remove('invalid');
+      sSeg.querySelectorAll('.chip').forEach((x) => x.classList.remove('on', 'bad'));
+      c.classList.add('on'); if (c.dataset.v === 'photo') c.classList.add('bad'); seen = c.dataset.v;
+    }));
     app.append(h('section', { class: 'card' }, h('h2', {}, '🔌 ผลทดสอบหลังซ่อม ', h('span', { class: 'req' }, '*')), tSeg,
-      h('div', { class: 'hint' }, 'ลองเปิดใช้งานจริงก่อนเลือก')),
-      h('section', { class: 'card' }, h('h2', {}, '📸 รูปหลังซ่อม ', h('span', { class: 'req' }, '*')),
-        h('div', { class: 'hint' }, 'ถ่ายให้เห็นเลขเครื่องเดียวกับรูปก่อนซ่อม'),
-        h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปหลังซ่อม')),
-      h('section', { class: 'card' }, h('h2', {}, '🔩 อะไหล่เก่าที่ถอดออก'),
+      h('div', { class: 'hint' }, sent ? `${w.person}แจ้งผลมาแล้ว ถ้าลองใช้เองแล้วไม่ตรง ให้แก้ตรงนี้` : 'ลองเปิดใช้งานจริงก่อนเลือก')),
+      h('section', { class: 'card' }, h('h2', {}, '👀 คุณได้เห็นของจริงหรือไม่ ', h('span', { class: 'req' }, '*')), sSeg,
+        h('div', { class: 'hint' }, 'เลือกตามจริง ของใหญ่ที่ขนกลับโรงงานไม่ได้เลือกข้อสุดท้ายได้ ระบบจะติดข้อสังเกตให้ผู้บริหารเห็นเอง')),
+      h('section', { class: 'card' }, h('h2', {}, '📸 รูปยืนยันสภาพ ', h('span', { class: 'req' }, '*')),
+        h('div', { class: 'hint' }, sent
+          ? 'ถ่ายตัวเครื่องถ้าของอยู่ที่โรงงาน — ถ้าของยังอยู่หน้างาน ถ่ายอะไหล่เก่าที่ส่งกลับมา หรือบิลที่ได้รับ'
+          : 'ถ่ายให้เห็นเลขเครื่องเดียวกับรูปก่อนซ่อม'),
+        h('div', { class: 'thumbs', id: 'th_recv' }), h('button', { class: 'btn camera', 'data-cam': 'recv' }, '📷 ถ่ายรูปยืนยันสภาพ')),
+      h('section', { class: 'card' }, h('h2', {}, '🔩 อะไหล่เก่าที่ถอดออก' + (sent && r.oldPartImages.length ? ' (ถ่ายเพิ่มได้)' : '')),
         h('div', { class: 'thumbs', id: 'th_oldpart' }), h('button', { class: 'btn camera', 'data-cam': 'oldpart' }, '📷 ถ่ายรูปอะไหล่เก่า'),
-        h('label', { class: 'check' }, noParts, h('span', {}, 'ไม่มีการเปลี่ยนอะไหล่ (ค่าแรงอย่างเดียว)'))),
+        sent && (r.oldPartImages.length || r.noParts) ? null
+          : h('label', { class: 'check' }, noParts, h('span', {}, 'ไม่มีการเปลี่ยนอะไหล่ (ค่าแรงอย่างเดียว)'))),
       h('section', { class: 'card' }, h('label', { for: 'rNote' }, 'หมายเหตุตรวจงาน'), note,
         h('label', { class: 'check' }, confirmBox, h('span', {}, 'ข้าพเจ้าตรวจของที่ได้คืน/งานซ่อม และทดสอบแล้ว เก็บใบส่งซ่อมและบิลไว้แล้ว'))));
-    bindCameraButtons({ bill: 'บิลค่าซ่อม', recv: 'หลังซ่อม', oldpart: 'อะไหล่เก่า' });
+    bindCameraButtons({ bill: 'บิลค่าซ่อม', recv: 'ยืนยันสภาพ', oldpart: 'อะไหล่เก่า' });
   } else {
     const qSeg = h('div', { class: 'seg' }, h('div', { class: 'chip on', 'data-v': 'ok' }, 'ตรงตามที่สั่ง'), h('div', { class: 'chip', 'data-v': 'bad' }, 'ไม่ตรง / ชำรุด'));
     qSeg.querySelectorAll('.chip').forEach((c) => (c.onclick = () => {
@@ -984,8 +1089,12 @@ async function viewReceive() {
       if (Number(lines[i].received) > 0 && lines[i].price === '') bad(b, 'ราคา');
     });
     if (repair && !test) { errs.push('ผลทดสอบหลังซ่อม'); first = first || document.querySelector('.seg'); }
-    if (!state.photos.recv.length) { errs.push(repair ? 'รูปหลังซ่อม' : 'รูปตอนรับ'); first = first || document.querySelector('[data-cam=recv]'); }
-    if (repair && !state.photos.oldpart.length && !noParts.checked) { errs.push('รูปอะไหล่เก่า (หรือติ๊กว่าไม่มีการเปลี่ยนอะไหล่)'); first = first || document.querySelector('[data-cam=oldpart]'); }
+    if (repair && !seen) { errs.push('เลือกว่าได้เห็นของจริงหรือไม่'); first = first || document.querySelectorAll('.seg')[1]; }
+    if (!state.photos.recv.length) { errs.push(repair ? 'รูปยืนยันสภาพ' : 'รูปตอนรับ'); first = first || document.querySelector('[data-cam=recv]'); }
+    // อะไหล่เก่าปกติมาจากผู้ส่งซ่อมแล้ว ถ้ายังไม่มีเลยต้องถ่ายหรือติ๊กว่าไม่ได้เปลี่ยน
+    if (repair && !r.oldPartImages.length && !r.noParts && !state.photos.oldpart.length && !noParts.checked) {
+      errs.push('รูปอะไหล่เก่า (หรือติ๊กว่าไม่มีการเปลี่ยนอะไหล่)'); first = first || document.querySelector('[data-cam=oldpart]');
+    }
     if (!confirmBox.checked) { errs.push('ติ๊กยืนยัน'); first = first || confirmBox; }
     const mismatch = order.some((it, i) => Number(lines[i].received) !== it.qty) || (!repair && extras.some((x) => x.name.trim()));
     if (!first && (mismatch || quality === 'bad' || (repair && test !== 'ใช้งานได้')) && !note.value.trim()) {
@@ -999,7 +1108,7 @@ async function viewReceive() {
         lines: lines.map((l) => ({ received: Number(l.received), price: Number(l.price) || 0 })),
         extras: extras.filter((e) => e.name.trim()).map((e) => ({ name: e.name.trim(), qty: Number(e.qty), unit: e.unit.trim(), price: Number(e.price) || 0 })),
         location: state.location, receiveImages: state.photos.recv, billImages: state.photos.bill,
-        test, oldPartImages: state.photos.oldpart, noParts: noParts.checked,
+        test, seen, oldPartImages: state.photos.oldpart, noParts: noParts.checked,
       } });
       const good = repair ? x.result === 'ซ่อมแล้ว: ใช้งานได้' || x.result === 'ซ่อมแล้ว: ใช้งานได้ / ไม่มีการเปลี่ยนอะไหล่'
         : /ครบ/.test(x.result) && !/สเปก/.test(x.result);
@@ -1110,7 +1219,8 @@ const MOCK_IMG = [{ url: '#', thumb: MOCK_PH }];
 const mockDB = (() => {
   const base = { dept: 'ซ่อมบำรุง', creator: 'นิด', created: '16/11/2569 08:10', note: 'ซ่อมสายพานเครื่องไส', prints: 0, flags: '', billImages: [], goodsImages: [], recvImages: [],
     a1By: '', a1At: '', validUntil: '', boughtAt: '', gps: '', billNo: '', total: 0, receiver: '', receivedAt: '', result: '', recvNote: '', a2By: '', a2At: '', settle: '', settleBy: '', settleAt: '', advance: 0,
-    kind: KIND.BUY, beforeImages: [], oldPartImages: [], test: '', noParts: false, days: null };
+    kind: KIND.BUY, beforeImages: [], oldPartImages: [], afterImages: [], test: '', noParts: false, days: null,
+    estimate: 0, estimateAt: '', estimateNote: '', fixedAt: '', seen: '' };
   const items = [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น' }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง' }];
   const mk = (o) => ({ ...base, items: items.map((x) => ({ ...x, received: null, price: null, amount: 0, result: '', extra: false })), ...o });
   const db = [
@@ -1166,7 +1276,9 @@ function mockLog(r) {
 function mockPerms(r) {
   const w = mockWho(); const s = r.status;
   return { view: true, approve1: w.isExec && s === ST.WAIT_A1, print: (w.isClerk || w.isExec) && (s === ST.TO_BUY || s === ST.BOUGHT),
-    buy: (r.buyerId === w.uid || (isRepair(r) && w.isClerk)) && s === ST.TO_BUY, receive: w.isClerk && (s === ST.TO_BUY || s === ST.BOUGHT),
+    buy: (r.buyerId === w.uid || (isRepair(r) && w.isClerk)) && s === ST.TO_BUY,
+    repairDone: isRepair(r) && s === ST.BOUGHT && (r.buyerId === w.uid || w.isClerk || w.isExec),
+    receive: w.isClerk && [ST.TO_BUY, ST.BOUGHT, ST.FIXED].includes(s),
     approve2: w.isExec && s === ST.WAIT_A2,
     cash1: (w.isCash || w.isExec) && s === ST.WAIT_CASH1, cash2: (w.isCash || w.isExec) && s === ST.WAIT_CASH2,
     cancel: (w.isClerk || w.isExec) && (s === ST.WAIT_A1 || s === ST.TO_BUY), why: {} };
@@ -1176,7 +1288,7 @@ async function mockApi(action, x) {
   const w = mockWho();
   const find = (id) => { const r = mockDB.find((p) => p.id === id); if (!r) throw new Error('ไม่พบ ' + id); return r; };
   const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags, kind: p.kind, days: p.days, a1By: p.a1By, a2By: p.a2By, receiver: p.receiver, estimate: p.estimate });
-  const open = [ST.WAIT_A1, ST.WAIT_CASH1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_CASH2, ST.WAIT_A2, ST.WAIT_SETTLE];
+  const open = [ST.WAIT_A1, ST.WAIT_CASH1, ST.TO_BUY, ST.BOUGHT, ST.FIXED, ST.WAIT_CASH2, ST.WAIT_A2, ST.WAIT_SETTLE];
   console.log('[mock]', action, JSON.parse(JSON.stringify(x, (k, v) => (typeof v === 'string' && v.length > 200 ? v.slice(0, 50) + '…' : v))));
   switch (action) {
     case 'me': return { ok: true, user: { name: state.profile.displayName, role: w.role, lang: '', isClerk: w.isClerk, isExec: w.isExec, isCash: w.isCash },
@@ -1184,6 +1296,9 @@ async function mockApi(action, x) {
       payments: Object.values(PAY), kinds: Object.values(KIND), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
     case 'setLang': return { ok: true };
     case 'estimate': { const r = find(x.id); r.estimate = x.amount; r.estimateNote = x.note; r.estimateAt = 'เมื่อสักครู่'; return { ok: true, id: r.id }; }
+    case 'repairDone': { const r = find(x.data.id); r.status = ST.FIXED; r.test = x.data.test; r.fixedAt = 'เมื่อสักครู่';
+      r.afterImages = MOCK_IMG; r.oldPartImages = x.data.noParts ? [] : MOCK_IMG; r.noParts = !!x.data.noParts;
+      if (x.data.billImages && x.data.billImages.length) r.billImages = MOCK_IMG; return { ok: true, id: r.id }; }
     case 'history': {
       const d = x.data || {};
       const scopeOk = (st) => d.scope === 'all' ? true : d.scope === 'open' ? open.includes(st)
@@ -1197,7 +1312,7 @@ async function mockApi(action, x) {
         summary: { count: hit.length, total: hit.reduce((s, p) => s + (p.total || 0), 0),
           byDept: by('dept', '(ไม่ระบุแผนก)'), byKind: by('kind', KIND.BUY), byPayment: by('payment', '(ไม่ระบุ)'), byVendor: by('vendor', '(ไม่ระบุร้าน)') } };
     }
-    case 'list': return { ok: true, jobs: mockDB.filter((p) => p.buyerId === w.uid && p.status === ST.TO_BUY).map(brief),
+    case 'list': return { ok: true, jobs: mockDB.filter((p) => p.buyerId === w.uid && (p.status === ST.TO_BUY || (isRepair(p) && p.status === ST.BOUGHT))).map(brief),
       myRecent: mockDB.filter((p) => p.buyerId === w.uid && p.status !== ST.TO_BUY).map(brief),
       open: mockDB.filter((p) => open.includes(p.status)).map(brief), recent: mockDB.filter((p) => !open.includes(p.status)).map(brief) };
     case 'get': { const r = find(x.id); return { ok: true, record: r, can: mockPerms(r), printUrl: 'about:blank', verifyUrl: '#', settlePreview: { text: r.settle || settleText(r, r.total) },
