@@ -420,11 +420,11 @@ async function viewHome() {
     if (data.recent.length) {
       app.append(h('div', { class: 'group' },
         h('span', {}, 'รายการที่จบแล้ว (ล่าสุด)'),
-        h('span', { style: 'color:var(--blue);cursor:pointer', onclick: () => go('history') }, 'ดูย้อนหลัง ›')));
+        h('span', { style: 'color:var(--blue);cursor:pointer', onclick: () => go('history') }, 'เปิดเอกสาร ›')));
       data.recent.forEach((p) => app.append(poRow(p)));
     }
     app.append(h('button', { class: 'btn line full', style: 'margin:12px 0 4px', onclick: () => go('history') },
-      '📋 ประวัติย้อนหลัง · สรุปยอดตามแผนก'));
+      '📂 เปิดเอกสารคำสั่งซื้อ/งานซ่อม · สรุปยอด'));
   } else if (data.myRecent.length) {
     app.append(h('div', { class: 'group' }, t('myRecent')));
     data.myRecent.forEach((p) => app.append(poRow(p)));
@@ -452,7 +452,7 @@ function poRow(p) {
     who ? h('div', { class: 'm' }, who) : null);
 }
 
-/* ================== ประวัติย้อนหลัง + สรุปยอด ==================
+/* ================== เปิดเอกสารคำสั่งซื้อ/งานซ่อม + สรุปยอด ==================
  * หน้าแยกจากหน้าแรก เพราะข้อมูลย้อนหลังเยอะ ถ้ายัดในหน้าแรกจะเปิดช้า
  * กดค้นหาทีไหร่ ระบบค่อยไปอ่านชีตทีนั้น
  */
@@ -478,7 +478,7 @@ function histState() {
 async function viewHistory() {
   const u = state.me.user;
   if (!(u.isClerk || u.isExec || u.isCash)) throw new Error('เฉพาะเสมียน ผู้บริหาร และการเงินเท่านั้น');
-  header('ประวัติย้อนหลัง', 'ค้นหา · สรุปยอด');
+  header('เอกสารคำสั่งซื้อ/งานซ่อม', 'ค้นหา · สรุปยอด');
   const f = histState();
   const app = $('app'); app.innerHTML = '';
 
