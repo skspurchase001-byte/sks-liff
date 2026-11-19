@@ -156,6 +156,7 @@ const ST_CLASS = { [ST.WAIT_A1]: 's-wait', [ST.TO_BUY]: 's-buy', [ST.BOUGHT]: 's
 
 /* ประเภทใบ — ใช้ขั้นตอนเดียวกัน ต่างกันที่คำเรียกและรูปหลักฐาน (ตรงกับ KIND_WORD ฝั่งเซิร์ฟเวอร์) */
 const KIND = { BUY: 'ซื้อของ', SHOP: 'ส่งซ่อมที่ร้าน', SITE: 'ช่างมาซ่อมที่โรงงาน' };
+const KINDS = [KIND.BUY, KIND.SHOP, KIND.SITE];
 const KW = {
   [KIND.BUY]: { ic: '🛒', doc: 'ใบสั่งของ', ask: 'สั่งซื้อ', person: 'ผู้ไปซื้อ', vendor: 'ร้านค้า', toDo: 'อนุมัติแล้ว รอซื้อ', done: 'ซื้อแล้ว รอตรวจรับ',
     start: '📸 ส่งรูปบิลและของ', recv: '📦 ตรวจรับของ' },
@@ -333,7 +334,7 @@ async function route(s, push) {
   setBar('', null); scrollTo(0, 0);
   $('app').innerHTML = '<div class="center">กำลังโหลด…</div>';
   try {
-    const views = { home: viewHome, create: viewCreate, po: viewPO, buy: viewBuy, receive: viewReceive };
+    const views = { home: viewHome, create: viewCreate, po: viewPO, buy: viewBuy, receive: viewReceive, history: viewHistory };
     await (views[s.view] || viewHome)();
   } catch (err) { showError(err); }
 }
@@ -388,9 +389,13 @@ async function viewHome() {
       list.forEach((p) => app.append(poRow(p)));
     });
     if (data.recent.length) {
-      app.append(h('div', { class: 'group' }, 'รายการที่จบแล้ว (ล่าสุด)'));
+      app.append(h('div', { class: 'group' },
+        h('span', {}, 'รายการที่จบแล้ว (ล่าสุด)'),
+        h('span', { style: 'color:var(--blue);cursor:pointer', onclick: () => go('history') }, 'ดูย้อนหลัง ›')));
       data.recent.forEach((p) => app.append(poRow(p)));
     }
+    app.append(h('button', { class: 'btn line full', style: 'margin:12px 0 4px', onclick: () => go('history') },
+      '📋 ประวัติย้อนหลัง · สรุปยอดตามแผนก'));
   } else if (data.myRecent.length) {
     app.append(h('div', { class: 'group' }, t('myRecent')));
     data.myRecent.forEach((p) => app.append(poRow(p)));
@@ -400,13 +405,147 @@ async function viewHome() {
 function poRow(p) {
   const money = p.total ? `${fmt(p.total)} บาท` : p.advance ? `เบิก ${fmt(p.advance)}` : '';
   const w = kw(p);
-  // ของที่อยู่ร้านซ่อมนาน → ขึ้นสีแดงให้เห็น (เกิน 14 วัน)
+  // ของที่อยู่ร้านซ่อมนาน → เกิน 7 วันขึ้นสีส้ม เกิน 14 วันขึ้นสีแดง
   const away = isRepair(p) && p.status === ST.BOUGHT && p.days != null
-    ? h('span', { class: p.days >= 14 ? 'bad' : '' }, ` · ${p.kind === KIND.SHOP ? 'อยู่ร้าน' : 'เริ่มซ่อมมา'} ${p.days} วัน`) : null;
+    ? h('span', {
+      class: p.days >= 14 ? 'bad' : '',
+      style: p.days >= 7 && p.days < 14 ? 'color:var(--amber);font-weight:700' : '',
+    }, ` · ${p.kind === KIND.SHOP ? 'อยู่ร้าน' : 'เริ่มซ่อมมา'} ${p.days} วัน${p.days >= 7 ? ' ⏳' : ''}`) : null;
+  const est = isRepair(p) && p.status === ST.BOUGHT && p.estimate
+    ? h('span', {}, ` · ร้านประเมิน ${fmt(p.estimate)} บาท`) : null;
+  // บรรทัดคนรับผิดชอบ — ใครอนุมัติ ใครตรวจรับ ใครปิดงาน (เห็นได้โดยไม่ต้องเปิดเข้าไป)
+  const who = [p.a1By && `อนุมัติ ${p.a1By}`, p.receiver && `ตรวจรับ ${p.receiver}`, p.a2By && `ปิดงาน ${p.a2By}`]
+    .filter(Boolean).join(' · ');
   return h('div', { class: 'po', onclick: () => go('po', p.id) },
     h('div', { class: 'r1' }, h('span', { class: 'id' }, (p.flagged ? '⚠️ ' : '') + (isRepair(p) ? w.ic + ' ' : '') + p.id), badge(p)),
     h('div', { class: 'v' }, p.vendor),
-    h('div', { class: 'm' }, [p.buyer && `${w.person} ${p.buyer}`, p.payment, money, p.created].filter(Boolean).join(' · '), away));
+    h('div', { class: 'm' }, [p.buyer && `${w.person} ${p.buyer}`, p.payment, money, p.created].filter(Boolean).join(' · '), away, est),
+    who ? h('div', { class: 'm' }, who) : null);
+}
+
+/* ================== ประวัติย้อนหลัง + สรุปยอด ==================
+ * หน้าแยกจากหน้าแรก เพราะข้อมูลย้อนหลังเยอะ ถ้ายัดในหน้าแรกจะเปิดช้า
+ * กดค้นหาทีไหร่ ระบบค่อยไปอ่านชีตทีนั้น
+ */
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const PRESETS = {
+  today: ['วันนี้', () => { const n = new Date(); return [n, n]; }],
+  d7: ['7 วันล่าสุด', () => { const n = new Date(); const a = new Date(); a.setDate(a.getDate() - 6); return [a, n]; }],
+  month: ['เดือนนี้', () => { const n = new Date(); return [new Date(n.getFullYear(), n.getMonth(), 1), n]; }],
+  prev: ['เดือนก่อน', () => { const n = new Date(); return [new Date(n.getFullYear(), n.getMonth() - 1, 1), new Date(n.getFullYear(), n.getMonth(), 0)]; }],
+  year: ['ปีนี้', () => { const n = new Date(); return [new Date(n.getFullYear(), 0, 1), n]; }],
+  custom: ['กำหนดเอง', null],
+};
+const SCOPES = [['closed', 'ปิดรายการแล้ว'], ['open', 'ยังไม่จบ (ค้างอยู่)'], ['rejected', 'ไม่อนุมัติ / ยกเลิก'], ['all', 'ทั้งหมด']];
+
+function histState() {
+  if (!state.hist) {
+    const [a, b] = PRESETS.month[1]();
+    state.hist = { preset: 'month', from: ymd(a), to: ymd(b), kind: '', dept: '', vendor: '', scope: 'closed' };
+  }
+  return state.hist;
+}
+
+async function viewHistory() {
+  const u = state.me.user;
+  if (!(u.isClerk || u.isExec || u.isCash)) throw new Error('เฉพาะเสมียน ผู้บริหาร และการเงินเท่านั้น');
+  header('ประวัติย้อนหลัง', 'ค้นหา · สรุปยอด');
+  const f = histState();
+  const app = $('app'); app.innerHTML = '';
+
+  const filterCard = h('div', { class: 'card' });
+  const resultBox = h('div', {});
+  app.append(filterCard, resultBox);
+
+  const setPreset = (k) => {
+    f.preset = k;
+    if (PRESETS[k][1]) { const [a, b] = PRESETS[k][1](); f.from = ymd(a); f.to = ymd(b); }
+    drawFilter();
+    if (k !== 'custom') load();
+  };
+
+  function drawFilter() {
+    filterCard.innerHTML = '';
+    filterCard.append(
+      h('h2', {}, '🔎 เลือกช่วงเวลาและหมวดหมู่'),
+      h('div', { class: 'chips' }, ...Object.keys(PRESETS).map((k) => h('div', {
+        class: 'chip' + (f.preset === k ? ' on' : ''), onclick: () => setPreset(k),
+      }, PRESETS[k][0]))),
+      h('div', { class: 'row2', style: 'margin-top:10px' },
+        h('div', {}, h('label', {}, 'ตั้งแต่วันที่'), h('input', {
+          type: 'date', value: f.from, onchange: (e) => { f.from = e.target.value; f.preset = 'custom'; drawFilter(); },
+        })),
+        h('div', {}, h('label', {}, 'ถึงวันที่'), h('input', {
+          type: 'date', value: f.to, onchange: (e) => { f.to = e.target.value; f.preset = 'custom'; drawFilter(); },
+        }))),
+      h('div', { class: 'row2' },
+        h('div', {}, h('label', {}, 'ประเภทงาน'), sel(f.kind, [['', 'ทุกประเภท'], ...KINDS.map((k) => [k, k])], (v) => { f.kind = v; })),
+        h('div', {}, h('label', {}, 'สถานะ'), sel(f.scope, SCOPES, (v) => { f.scope = v; }))),
+      h('div', { class: 'row2' },
+        h('div', {}, h('label', {}, 'แผนก'), sel(f.dept, [['', 'ทุกแผนก'], ...(state.histOpts ? state.histOpts.depts : []).map((d) => [d, d])], (v) => { f.dept = v; })),
+        h('div', {}, h('label', {}, 'ร้าน'), sel(f.vendor, [['', 'ทุกร้าน'], ...(state.histOpts ? state.histOpts.vendors : []).map((d) => [d, d])], (v) => { f.vendor = v; }))),
+      h('button', { class: 'btn primary full', style: 'margin-top:12px', onclick: () => load() }, 'ค้นหา'),
+    );
+  }
+  function sel(value, pairs, onChange) {
+    const s = h('select', { onchange: (e) => onChange(e.target.value) },
+      ...pairs.map(([v, label]) => h('option', { value: v, ...(v === value ? { selected: '' } : {}) }, label)));
+    return s;
+  }
+
+  async function load() {
+    resultBox.innerHTML = '<div class="center">กำลังค้นหา…</div>';
+    try {
+      const r = await api('history', { data: { from: f.from, to: f.to, kind: f.kind, dept: f.dept, vendor: f.vendor, scope: f.scope } });
+      const firstTime = !state.histOpts;
+      state.histOpts = r.options;
+      if (firstTime) drawFilter();
+      drawResult(r);
+    } catch (err) { resultBox.innerHTML = ''; resultBox.append(h('div', { class: 'center' }, '⚠️ ' + err.message)); }
+  }
+
+  function bars(title, list, total) {
+    if (!list.length) return null;
+    const box = h('div', { class: 'card' }, h('h2', {}, title));
+    list.forEach((x) => {
+      const pct = total > 0 ? Math.round((x.amount / total) * 100) : 0;
+      box.append(h('div', { style: 'margin:8px 0' },
+        h('div', { style: 'display:flex;justify-content:space-between;font-size:14px;gap:8px' },
+          h('span', {}, x.name), h('b', {}, `${fmt(x.amount)} บาท`)),
+        h('div', { style: 'height:8px;border-radius:4px;background:#EEF2F6;margin-top:4px;overflow:hidden' },
+          h('div', { style: `height:100%;width:${pct}%;background:var(--green)` })),
+        h('div', { class: 'mini' }, `${pct}%`)));
+    });
+    return box;
+  }
+
+  function drawResult(r) {
+    resultBox.innerHTML = '';
+    const s = r.summary;
+    resultBox.append(h('div', { class: 'card', style: 'background:#EEF6FF' },
+      h('div', { style: 'font-size:14px;color:var(--muted)' }, `${thaiRange(f.from, f.to)} · ${SCOPES.filter((x) => x[0] === f.scope)[0][1]}`),
+      h('div', { style: 'font-size:28px;font-weight:700;color:var(--blue);margin:4px 0' }, `${fmt(s.total)} บาท`),
+      h('div', { style: 'font-size:15px' }, `${fmtN(s.count)} ใบ`)));
+
+    if (!s.count) { resultBox.append(h('div', { class: 'empty' }, 'ไม่พบรายการในช่วงนี้')); return; }
+    resultBox.append(bars('🏭 แยกตามแผนก', s.byDept, s.total));
+    resultBox.append(bars('🧾 แยกตามประเภทงาน', s.byKind, s.total));
+    resultBox.append(bars('💳 แยกตามวิธีชำระ', s.byPayment, s.total));
+    resultBox.append(bars('🏪 ร้านที่ใช้เงินมากสุด (10 อันดับ)', s.byVendor, s.total));
+
+    resultBox.append(h('div', { class: 'group' },
+      h('span', {}, 'รายการทั้งหมด'),
+      h('span', {}, r.truncated ? `แสดง ${r.rows.length} จาก ${fmtN(s.count)} ใบ` : `${fmtN(s.count)} ใบ`)));
+    if (r.truncated) resultBox.append(h('div', { class: 'mini', style: 'margin:0 4px 8px' }, 'รายการเยอะเกินไป แสดงเฉพาะใบล่าสุด — ย่อช่วงวันที่ลงเพื่อดูให้ครบ'));
+    r.rows.forEach((p) => resultBox.append(poRow(p)));
+  }
+
+  drawFilter();
+  await load();
+}
+function thaiRange(a, b) {
+  const t = (s) => { const d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`; };
+  return a === b ? t(a) : `${t(a)} – ${t(b)}`;
 }
 
 function langSwitch(onChange) {
@@ -531,6 +670,7 @@ async function viewPO() {
       ['เบิกล่วงหน้า', r.payment === PAY.ADVANCE ? fmt(r.advance) + ' บาท' : ''], ['ผู้จัดทำ', `${r.creator} · ${r.created}`],
       [repair ? 'อาการเสีย' : 'เหตุผล', r.note], ['อนุมัติ' + w.ask, r.a1By ? `${r.a1By} · ${r.a1At}` : ''], ['ใช้ได้ถึง', r.validUntil],
       ['พิมพ์แล้ว', r.a1By ? `${r.prints} ครั้ง` : ''], [repair ? (r.kind === KIND.SHOP ? 'นำของออกไปซ่อม' : 'ช่างเริ่มซ่อม') : 'ส่งรูปจากร้าน', r.boughtAt],
+      ['ราคาที่ร้านประเมิน', r.estimate ? `${fmt(r.estimate)} บาท${r.estimateAt ? ' · ' + r.estimateAt : ''}${r.estimateNote ? '\n' + r.estimateNote : ''}` : ''],
       ['เลขที่บิลร้าน', r.billNo], ['ยอดตามบิล', r.receivedAt ? fmt(r.total) + ' บาท' : ''],
       ['ตรวจรับ', r.receiver ? `${r.receiver} · ${r.receivedAt}` : ''], ['ผลตรวจรับ', r.result],
       ['ผลทดสอบหลังซ่อม', r.test ? h('b', { class: r.test === 'ใช้งานได้' ? 'ok' : 'bad' }, r.test) : ''], ['หมายเหตุตรวจรับ', r.recvNote],
@@ -595,6 +735,22 @@ async function viewPO() {
     h('button', { class: 'btn primary full', onclick: () => {
       if (confirm(`ยืนยันว่าทำรายการเงินนี้แล้ว?\n${r.settle || res.settlePreview.text}`)) run('cashPost', {}, 'กำลังบันทึกการเคลียร์เงิน…');
     } }, '✅ จ่าย/รับเงินเรียบร้อยแล้ว'));
+  // ใบซ่อมที่ของยังอยู่ร้าน — แจ้งราคาที่ร้านประเมินไว้ก่อน ผู้บริหารจะได้สั่งหยุดทันถ้าแพงเกิน
+  if (repair && r.status === ST.BOUGHT && (r.buyerId === state.me.user.userId || state.me.user.isClerk || state.me.user.isExec)) {
+    const est = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', value: String(r.estimate || '') });
+    const enote = h('input', { type: 'text', value: r.estimateNote || '', placeholder: 'เช่น เปลี่ยนคอยล์ + ค่าแรง' });
+    acts.append(
+      h('div', { class: 'info' }, r.estimate
+        ? `🔧 ร้านประเมินไว้ ${fmt(r.estimate)} บาท${r.estimateAt ? ' · แจ้งเมื่อ ' + r.estimateAt : ''} — แก้ได้ถ้าร้านเปลี่ยนราคา`
+        : '🔧 ร้านบอกราคาแล้วให้ใส่ไว้ตรงนี้ ผู้บริหารจะได้เห็นก่อนของกลับมา'),
+      h('label', {}, 'ราคาที่ร้านประเมิน (บาท)', est),
+      h('label', {}, 'รายละเอียดที่ร้านบอก', enote),
+      h('button', { class: 'btn line full', onclick: () => {
+        const v = Number(est.value);
+        if (!(v > 0)) return toast('กรุณาใส่ราคาที่ร้านประเมิน');
+        run('estimate', { amount: v, note: enote.value }, 'กำลังบันทึกราคาประเมิน…');
+      } }, '🔧 บันทึกราคาประเมิน'));
+  }
   if (can.cancel) acts.append(h('button', { class: 'btn line full', onclick: () => { const n = prompt('เหตุผลที่ยกเลิกใบนี้'); if (n) run('cancel', { reason: n }); } }, 'ยกเลิก' + w.doc));
   Object.values(can.why || {}).forEach((w) => acts.append(h('div', { class: 'warn' }, '🔒 ' + w)));
   if (res.evidenceUrl) acts.append(h('button', { class: 'btn ghost full', onclick: () => openExternal(res.evidenceUrl) }, '📂 หน้าหลักฐานทั้งหมด (ลิงก์เดียวกับในไฟล์บัญชี)'));
@@ -1019,7 +1175,7 @@ async function mockApi(action, x) {
   await new Promise((r) => setTimeout(r, 300));
   const w = mockWho();
   const find = (id) => { const r = mockDB.find((p) => p.id === id); if (!r) throw new Error('ไม่พบ ' + id); return r; };
-  const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags, kind: p.kind, days: p.days });
+  const brief = (p) => ({ id: p.id, created: p.created, vendor: p.vendor, dept: p.dept, buyer: p.buyer, status: p.status, payment: p.payment, advance: p.advance, total: p.total, prints: p.prints, flagged: !!p.flags, kind: p.kind, days: p.days, a1By: p.a1By, a2By: p.a2By, receiver: p.receiver, estimate: p.estimate });
   const open = [ST.WAIT_A1, ST.WAIT_CASH1, ST.TO_BUY, ST.BOUGHT, ST.WAIT_CASH2, ST.WAIT_A2, ST.WAIT_SETTLE];
   console.log('[mock]', action, JSON.parse(JSON.stringify(x, (k, v) => (typeof v === 'string' && v.length > 200 ? v.slice(0, 50) + '…' : v))));
   switch (action) {
@@ -1027,6 +1183,20 @@ async function mockApi(action, x) {
       departments: ['ฝ่ายผลิต', 'ซ่อมบำรุง', 'คลังสินค้า', 'สำนักงาน'], vendors: [{ name: 'ร้านสง่ายานยนต์', payment: PAY.CREDIT }, { name: 'ร้านตระกูลพานิช', payment: PAY.ADVANCE }],
       payments: Object.values(PAY), kinds: Object.values(KIND), buyers: [{ id: 'Ubuyer', name: 'Aung Ko' }, { id: 'Uother', name: 'Sokha' }], itemNames: ['เหล็กตัว C', 'ลวดเชื่อม 2.6 มม.', 'สายพาน B-52', 'จารบี'] };
     case 'setLang': return { ok: true };
+    case 'estimate': { const r = find(x.id); r.estimate = x.amount; r.estimateNote = x.note; r.estimateAt = 'เมื่อสักครู่'; return { ok: true, id: r.id }; }
+    case 'history': {
+      const d = x.data || {};
+      const scopeOk = (st) => d.scope === 'all' ? true : d.scope === 'open' ? open.includes(st)
+        : d.scope === 'rejected' ? [ST.REJECTED, ST.CANCELLED].includes(st) : st === ST.CLOSED;
+      const hit = mockDB.filter((p) => scopeOk(p.status) && (!d.kind || (p.kind || KIND.BUY) === d.kind)
+        && (!d.dept || p.dept === d.dept) && (!d.vendor || p.vendor === d.vendor));
+      const by = (key, fallback) => { const m = {}; hit.forEach((p) => { const k = p[key] || fallback; m[k] = (m[k] || 0) + (p.total || 0); });
+        return Object.keys(m).map((k) => ({ name: k, amount: m[k] })).sort((a, b) => b.amount - a.amount); };
+      return { ok: true, options: { depts: ['ฝ่ายผลิต', 'ซ่อมบำรุง', 'คลังสินค้า', 'สำนักงาน'], vendors: ['ร้านสง่ายานยนต์', 'ร้านตระกูลพานิช', 'ร้านช่างหมูพันมอเตอร์', 'ช่างเอก แอร์'] },
+        truncated: false, rows: hit.map(brief),
+        summary: { count: hit.length, total: hit.reduce((s, p) => s + (p.total || 0), 0),
+          byDept: by('dept', '(ไม่ระบุแผนก)'), byKind: by('kind', KIND.BUY), byPayment: by('payment', '(ไม่ระบุ)'), byVendor: by('vendor', '(ไม่ระบุร้าน)') } };
+    }
     case 'list': return { ok: true, jobs: mockDB.filter((p) => p.buyerId === w.uid && p.status === ST.TO_BUY).map(brief),
       myRecent: mockDB.filter((p) => p.buyerId === w.uid && p.status !== ST.TO_BUY).map(brief),
       open: mockDB.filter((p) => open.includes(p.status)).map(brief), recent: mockDB.filter((p) => !open.includes(p.status)).map(brief) };
