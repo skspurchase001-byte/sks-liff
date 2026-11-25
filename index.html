@@ -706,6 +706,7 @@ async function viewPO() {
       ['ส่งหลักฐานหลังซ่อม', r.fixedAt], ['เสมียนเห็นของจริง', r.seen],
       ['หมายเหตุตรวจรับ', r.recvNote],
       ['จ่ายเงินเบิก', r.advBy ? `${r.advBy} · ${r.advAt}` : ''],
+      ['ความเห็นตอนอนุมัติ', r.a1Note], ['ความเห็นตอนปิดรายการ', r.a2Note],
       ['ปิดรายการ', r.a2By ? `${r.a2By} · ${r.a2At}` : ''], ['การเงิน', r.settle], ['เคลียร์เงิน', r.settleBy ? `${r.settleBy} · ${r.settleAt}` : '']]),
     flagsBox(r.flags)));
 
@@ -738,9 +739,18 @@ async function viewPO() {
     try { const x = await api(action, { id: r.id, ...extra }); toast(x.message || 'บันทึกแล้ว', 4000); await route({ view: 'po', id: r.id }, false); }
     catch (err) { toast(err.message, 5000); } finally { overlay(false); }
   };
-  if (can.approve1) acts.append(h('div', { class: 'actions two' },
-    h('button', { class: 'btn primary', onclick: () => run('approve1', { approve: true }) }, '✅ อนุมัติ' + w.ask),
-    h('button', { class: 'btn red', onclick: () => { const n = prompt('เหตุผลที่ไม่อนุมัติ'); if (n !== null) run('approve1', { approve: false, note: n }); } }, 'ไม่อนุมัติ')));
+  if (can.approve1) {
+    // ช่องความเห็นผู้บริหาร — ใช้ได้ทั้งตอนอนุมัติ (เช่น สั่งให้ต่อราคา) และตอนไม่อนุมัติ
+    const cmt = h('textarea', { id: 'a1note', placeholder: 'เช่น ให้ต่อราคาก่อน / ซื้อเฉพาะที่จำเป็น' });
+    acts.append(
+      h('label', { for: 'a1note' }, '💬 ความเห็นผู้บริหาร (ไม่ใส่ก็ได้)'), cmt,
+      h('div', { class: 'actions two' },
+        h('button', { class: 'btn primary', onclick: () => run('approve1', { approve: true, note: cmt.value.trim() }) }, '✅ อนุมัติ' + w.ask),
+        h('button', { class: 'btn red', onclick: () => {
+          const n = cmt.value.trim() || prompt('เหตุผลที่ไม่อนุมัติ');
+          if (n) run('approve1', { approve: false, note: n }); else toast('กรุณาเขียนเหตุผลที่ไม่อนุมัติ');
+        } }, 'ไม่อนุมัติ')));
+  }
   if (can.print) acts.append(h('button', { class: 'btn blue full', onclick: () => openExternal(res.printUrl) },
     r.prints ? `🖨️ พิมพ์ซ้ำ (จะขึ้น "สำเนา")` : '🖨️ พิมพ์' + w.doc),
     h('div', { class: 'hint' }, 'แนะนำให้เปิดจากคอมพิวเตอร์ที่ต่อเครื่องพิมพ์ (เปิด LINE บนคอมแล้วกดปุ่มนี้)'));
@@ -750,11 +760,19 @@ async function viewPO() {
     h('div', { class: 'hint' }, 'ทำในมือถือตอนไปรับของที่ร้าน — ถ่ายรูปหลังซ่อม อะไหล่เก่า และบิล'));
   if (can.receive) acts.append(h('button', { class: 'btn blue full', onclick: () => go('receive', r.id) }, w.recv),
     repair ? h('div', { class: 'hint' }, 'ทำในมือถือ — ต้องถ่ายรูปหลังซ่อมตอนรับของจริง') : null);
-  if (can.approve2) acts.append(
-    h('div', { class: 'info' }, '💵 ' + res.settlePreview.text),
-    h('div', { class: 'actions two' },
-      h('button', { class: 'btn primary', onclick: () => run('approve2', { approve: true }) }, '✅ ปิดรายการ'),
-      h('button', { class: 'btn line', onclick: () => { const n = prompt('ส่งกลับให้ตรวจใหม่เพราะ'); if (n !== null) run('approve2', { approve: false, note: n }); } }, '↩️ ส่งกลับตรวจใหม่')));
+  if (can.approve2) {
+    const cmt2 = h('textarea', { id: 'a2note', placeholder: 'เช่น ครั้งหน้าเทียบราคาอีกร้านก่อน' });
+    acts.append(
+      h('div', { class: 'info' }, '💵 ' + res.settlePreview.text),
+      r.a1Note ? h('div', { class: 'warn' }, '💬 ความเห็นตอนอนุมัติ: ' + r.a1Note) : null,
+      h('label', { for: 'a2note' }, '💬 ความเห็นก่อนปิดรายการ (ไม่ใส่ก็ได้)'), cmt2,
+      h('div', { class: 'actions two' },
+        h('button', { class: 'btn primary', onclick: () => run('approve2', { approve: true, note: cmt2.value.trim() }) }, '✅ ปิดรายการ'),
+        h('button', { class: 'btn line', onclick: () => {
+          const n = cmt2.value.trim() || prompt('ส่งกลับให้ตรวจใหม่เพราะ');
+          if (n) run('approve2', { approve: false, note: n }); else toast('กรุณาเขียนเหตุผลที่ส่งกลับ');
+        } }, '↩️ ส่งกลับตรวจใหม่')));
+  }
   // การเงินขั้นที่ 1 — จ่ายเงินเบิกล่วงหน้าก่อนออกไปซื้อ (แก้ยอดได้ถ้าจ่ายจริงไม่เท่ากับที่ขอเบิก)
   if (can.cash1) {
     const amt = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.01', value: String(r.advance || '') });
@@ -1220,7 +1238,7 @@ const mockDB = (() => {
   const base = { dept: 'ซ่อมบำรุง', creator: 'นิด', created: '16/11/2569 08:10', note: 'ซ่อมสายพานเครื่องไส', prints: 0, flags: '', billImages: [], goodsImages: [], recvImages: [],
     a1By: '', a1At: '', validUntil: '', boughtAt: '', gps: '', billNo: '', total: 0, receiver: '', receivedAt: '', result: '', recvNote: '', a2By: '', a2At: '', settle: '', settleBy: '', settleAt: '', advance: 0,
     kind: KIND.BUY, beforeImages: [], oldPartImages: [], afterImages: [], test: '', noParts: false, days: null,
-    estimate: 0, estimateAt: '', estimateNote: '', fixedAt: '', seen: '' };
+    estimate: 0, estimateAt: '', estimateNote: '', fixedAt: '', seen: '', a1Note: '', a2Note: '' };
   const items = [{ name: 'เหล็กตัว C', qty: 1, unit: 'เส้น' }, { name: 'ลวดเชื่อม 2.6 มม.', qty: 2, unit: 'กล่อง' }];
   const mk = (o) => ({ ...base, items: items.map((x) => ({ ...x, received: null, price: null, amount: 0, result: '', extra: false })), ...o });
   const db = [
@@ -1318,7 +1336,7 @@ async function mockApi(action, x) {
     case 'get': { const r = find(x.id); return { ok: true, record: r, can: mockPerms(r), printUrl: 'about:blank', verifyUrl: '#', settlePreview: { text: r.settle || settleText(r, r.total) },
       log: (w.isClerk || w.isExec) ? mockLog(r) : [] }; }
     case 'create': return { ok: true, id: 'PO6911-0006', notified: true };
-    case 'approve1': { const r = find(x.id); r.status = x.approve ? ST.TO_BUY : ST.REJECTED; r.a1By = 'คุณสมชาย'; r.a1At = 'เมื่อสักครู่'; r.validUntil = '23/11/2569'; return { ok: true, message: x.approve ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ' }; }
+    case 'approve1': { const r = find(x.id); r.status = x.approve ? ST.TO_BUY : ST.REJECTED; r.a1By = 'คุณสมชาย'; r.a1At = 'เมื่อสักครู่'; r.validUntil = '23/11/2569'; r.a1Note = x.note || ''; return { ok: true, message: x.approve ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ' }; }
     case 'bought': { const r = find(x.data.id); r.status = ST.BOUGHT; r.boughtAt = 'เมื่อสักครู่'; r.days = 0;
       if (isRepair(r)) r.beforeImages = MOCK_IMG; else { r.billImages = MOCK_IMG; r.goodsImages = MOCK_IMG; } return { ok: true, id: r.id }; }
     case 'receive': { const r = find(x.data.id); r.status = ST.WAIT_A2; r.total = x.data.billTotal; r.settle = settleText(r, r.total);
@@ -1327,7 +1345,7 @@ async function mockApi(action, x) {
         r.recvImages = MOCK_IMG; if (x.data.oldPartImages.length) r.oldPartImages = MOCK_IMG; else r.noParts = !!x.data.noParts; }
       else r.result = all ? 'ครบตามใบสั่ง' : 'ไม่ตรงใบสั่ง';
       return { ok: true, id: r.id, result: r.result, settle: { text: r.settle } }; }
-    case 'approve2': { const r = find(x.id); r.status = x.approve ? (r.payment === PAY.CREDIT ? ST.CLOSED : ST.WAIT_SETTLE) : ST.BOUGHT; return { ok: true, message: 'บันทึกแล้ว' }; }
+    case 'approve2': { const r = find(x.id); r.status = x.approve ? ST.CLOSED : ST.BOUGHT; r.a2Note = x.note || ''; if (x.approve) { r.a2By = 'คุณสมชาย'; r.a2At = 'เมื่อสักครู่'; } return { ok: true, message: 'บันทึกแล้ว' }; }
     case 'cashPre': { const r = find(x.id); r.advance = x.amount; r.status = ST.TO_BUY; return { ok: true, message: 'จ่ายเงินเบิกแล้ว' }; }
     case 'cashPost': { const r = find(x.id); r.status = ST.WAIT_A2; r.settleBy = 'การเงิน'; return { ok: true, message: 'เคลียร์เงินแล้ว' }; }
     case 'cancel': { find(x.id).status = ST.CANCELLED; return { ok: true, message: 'ยกเลิกแล้ว' }; }
